@@ -31,7 +31,7 @@ importers:
         version: 8.62.0(eslint@9.39.4)(typescript@5.9.3)
       vitest:
         specifier: ^3.0.0
-        version: 3.2.6(@types/node@22.20.0)
+        version: 3.2.6(@types/node@22.20.0)(happy-dom@18.0.1)
 
   test-support:
     devDependencies:
@@ -40,7 +40,7 @@ importers:
         version: link:../../noy-db/packages/hub
       vitest:
         specifier: ^3.0.0
-        version: 3.2.6(@types/node@22.20.0)
+        version: 3.2.6(@types/node@22.20.0)(happy-dom@18.0.1)
 
   to-aws-dynamo:
     devDependencies:
@@ -63,6 +63,18 @@ importers:
         specifier: link:../../noy-db/packages/hub
         version: link:../../noy-db/packages/hub
 
+  to-browser-local:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@noy-db/test-adapter-conformance':
+        specifier: workspace:*
+        version: link:../test-support
+      happy-dom:
+        specifier: ^18.0.0
+        version: 18.0.1
+
   to-cloudflare-d1:
     devDependencies:
       '@noy-db/hub':
@@ -83,6 +95,24 @@ importers:
       '@noy-db/to-aws-s3':
         specifier: workspace:*
         version: link:../to-aws-s3
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-drive:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-icloud:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -851,8 +881,14 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/node@20.19.43':
+    resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
+
   '@types/node@22.20.0':
     resolution: {integrity: sha512-QWlFW2wf3nTjC13/DqRnBpR4ZO36VJH/JVBkA/vcnmbTBNQIlnObqyqZE1tUR7+Ni23Lda8R1BxMfbXRpCUx5g==}
+
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
 
   '@typescript-eslint/eslint-plugin@8.62.0':
     resolution: {integrity: sha512-o+mpz7EYiMzXoySXiKmzlabIvTVqUuK5yLrAedRPRDA0IpPFMUV1IXt6OqljIxX/kumN6EjUYp41Hqelh6p/Dw==}
@@ -1175,6 +1211,10 @@ packages:
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
+
+  happy-dom@18.0.1:
+    resolution: {integrity: sha512-qn+rKOW7KWpVTtgIUi6RVmTBZJSe2k0Db0vh1f7CWrWclkkc7/Q+FrOfkZIb2eiErLyqu5AXEzE7XthO9JVxRA==}
+    engines: {node: '>=20.0.0'}
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -1591,6 +1631,10 @@ packages:
         optional: true
       jsdom:
         optional: true
+
+  whatwg-mimetype@3.0.0:
+    resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
+    engines: {node: '>=12'}
 
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
@@ -2256,9 +2300,15 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/node@20.19.43':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/node@22.20.0':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/whatwg-mimetype@3.0.2': {}
 
   '@typescript-eslint/eslint-plugin@8.62.0(@typescript-eslint/parser@8.62.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4)(typescript@5.9.3)':
     dependencies:
@@ -2664,6 +2714,12 @@ snapshots:
 
   globals@14.0.0: {}
 
+  happy-dom@18.0.1:
+    dependencies:
+      '@types/node': 20.19.43
+      '@types/whatwg-mimetype': 3.0.2
+      whatwg-mimetype: 3.0.0
+
   has-flag@4.0.0: {}
 
   ignore@5.3.2: {}
@@ -3012,7 +3068,7 @@ snapshots:
       '@types/node': 22.20.0
       fsevents: 2.3.3
 
-  vitest@3.2.6(@types/node@22.20.0):
+  vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.6
@@ -3039,6 +3095,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.0
+      happy-dom: 18.0.1
     transitivePeerDependencies:
       - jiti
       - less
@@ -3052,6 +3109,8 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  whatwg-mimetype@3.0.0: {}
 
   which@2.0.2:
     dependencies:
