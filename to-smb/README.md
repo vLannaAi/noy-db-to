@@ -1,20 +1,20 @@
-# @noy-db/to-turso
+# @noy-db/to-smb
 
-[![npm](https://img.shields.io/npm/v/%40noy-db/to-turso.svg)](https://www.npmjs.com/package/@noy-db/to-turso)
+[![npm](https://img.shields.io/npm/v/%40noy-db/to-smb.svg)](https://www.npmjs.com/package/@noy-db/to-smb)
 
-> Turso / libSQL adapter for noy-db
+> SMB/CIFS network file store for noy-db. Works against Windows file servers, NAS devices (Synology/QNAP/Netgear), and corporate shared drives via NTLM or Kerberos auth
 
 Part of [**`@noy-db/hub`**](https://www.npmjs.com/package/@noy-db/hub) — the zero-knowledge, offline-first, encrypted document store.
 
 ## Install
 
 ```bash
-pnpm add @noy-db/hub @noy-db/to-turso
+pnpm add @noy-db/hub @noy-db/to-smb
 ```
 
 ## What it is
 
-Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wraps @libsql/client through a small async shim that speaks the same noy-db store contract as @noy-db/to-sqlite.
+SMB/CIFS network file store for noy-db. Works against Windows file servers, NAS devices (Synology/QNAP/Netgear), and corporate shared drives via NTLM or Kerberos auth — no OS mount required.
 
 ## Status
 
@@ -24,7 +24,7 @@ Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wra
 
 See the [main repository](https://github.com/vLannaAi/noy-db#readme) for setup, examples, and the full subsystem catalog.
 
-- Source — [`packages/to-turso`](https://github.com/vLannaAi/noy-db-to/tree/main/to-turso)
+- Source — [`packages/to-smb`](https://github.com/vLannaAi/noy-db-to/tree/main/to-smb)
 - Issues — [github.com/vLannaAi/noy-db-to/issues](https://github.com/vLannaAi/noy-db-to/issues)
 - Spec — [`SPEC.md`](https://github.com/vLannaAi/noy-db/blob/main/SPEC.md)
 

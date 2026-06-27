@@ -42,7 +42,70 @@ importers:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@22.20.0)
 
+  to-cloudflare-d1:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-mysql:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-postgres:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-smb:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-sqlite:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-ssh:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
   to-turso:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
+  to-webdav:
     devDependencies:
       '@noy-db/hub':
         specifier: link:../../noy-db/packages/hub

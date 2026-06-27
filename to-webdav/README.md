@@ -1,20 +1,20 @@
-# @noy-db/to-turso
+# @noy-db/to-webdav
 
-[![npm](https://img.shields.io/npm/v/%40noy-db/to-turso.svg)](https://www.npmjs.com/package/@noy-db/to-turso)
+[![npm](https://img.shields.io/npm/v/%40noy-db/to-webdav.svg)](https://www.npmjs.com/package/@noy-db/to-webdav)
 
-> Turso / libSQL adapter for noy-db
+> WebDAV adapter for noy-db
 
 Part of [**`@noy-db/hub`**](https://www.npmjs.com/package/@noy-db/hub) — the zero-knowledge, offline-first, encrypted document store.
 
 ## Install
 
 ```bash
-pnpm add @noy-db/hub @noy-db/to-turso
+pnpm add @noy-db/hub @noy-db/to-webdav
 ```
 
 ## What it is
 
-Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wraps @libsql/client through a small async shim that speaks the same noy-db store contract as @noy-db/to-sqlite.
+WebDAV adapter for noy-db — encrypted object storage over the WebDAV protocol. Works with Nextcloud, ownCloud, Apache mod_dav, and any RFC 4918 server. Pure fetch()-based, zero dependencies.
 
 ## Status
 
@@ -24,7 +24,7 @@ Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wra
 
 See the [main repository](https://github.com/vLannaAi/noy-db#readme) for setup, examples, and the full subsystem catalog.
 
-- Source — [`packages/to-turso`](https://github.com/vLannaAi/noy-db-to/tree/main/to-turso)
+- Source — [`packages/to-webdav`](https://github.com/vLannaAi/noy-db-to/tree/main/to-webdav)
 - Issues — [github.com/vLannaAi/noy-db-to/issues](https://github.com/vLannaAi/noy-db-to/issues)
 - Spec — [`SPEC.md`](https://github.com/vLannaAi/noy-db/blob/main/SPEC.md)
 

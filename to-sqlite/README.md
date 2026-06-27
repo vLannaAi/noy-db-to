@@ -1,20 +1,20 @@
-# @noy-db/to-turso
+# @noy-db/to-sqlite
 
-[![npm](https://img.shields.io/npm/v/%40noy-db/to-turso.svg)](https://www.npmjs.com/package/@noy-db/to-turso)
+[![npm](https://img.shields.io/npm/v/%40noy-db/to-sqlite.svg)](https://www.npmjs.com/package/@noy-db/to-sqlite)
 
-> Turso / libSQL adapter for noy-db
+> SQLite adapter for noy-db
 
 Part of [**`@noy-db/hub`**](https://www.npmjs.com/package/@noy-db/hub) — the zero-knowledge, offline-first, encrypted document store.
 
 ## Install
 
 ```bash
-pnpm add @noy-db/hub @noy-db/to-turso
+pnpm add @noy-db/hub @noy-db/to-sqlite
 ```
 
 ## What it is
 
-Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wraps @libsql/client through a small async shim that speaks the same noy-db store contract as @noy-db/to-sqlite.
+SQLite adapter for noy-db — single-file local encrypted document store. Works with better-sqlite3, node:sqlite (Node 22+), or bun:sqlite via a duck-typed Database interface. casAtomic: true (BEGIN IMMEDIATE + UPDATE WHERE _v=?).
 
 ## Status
 
@@ -24,7 +24,7 @@ Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wra
 
 See the [main repository](https://github.com/vLannaAi/noy-db#readme) for setup, examples, and the full subsystem catalog.
 
-- Source — [`packages/to-turso`](https://github.com/vLannaAi/noy-db-to/tree/main/to-turso)
+- Source — [`packages/to-sqlite`](https://github.com/vLannaAi/noy-db-to/tree/main/to-sqlite)
 - Issues — [github.com/vLannaAi/noy-db-to/issues](https://github.com/vLannaAi/noy-db-to/issues)
 - Spec — [`SPEC.md`](https://github.com/vLannaAi/noy-db/blob/main/SPEC.md)
 
