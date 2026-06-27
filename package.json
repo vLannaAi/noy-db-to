@@ -1,6 +1,6 @@
 {
   "name": "noy-db-to",
-  "version": "0.2.0-pre.0",
+  "version": "0.2.0-pre.31",
   "private": true,
   "description": "Extended storage adapters for noy-db — the non-essential to-* family (cloud, server, remote-fs), bound to the published @noy-db/hub/adapter seam.",
   "license": "MIT",
@@ -16,12 +16,6 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "check:architecture": "node scripts/check-architecture.mjs"
-  },
-  "//pnpm-overrides": "TEMPORARY dev bridge until @noy-db/hub@^0.2.0-pre.31 is published (step-2). Remove at finalization so CI resolves the published package.",
-  "pnpm": {
-    "overrides": {
-      "@noy-db/hub": "link:../noy-db/packages/hub"
-    }
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
