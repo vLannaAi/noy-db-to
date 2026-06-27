@@ -33,5 +33,6 @@ describe('noy-db-to architecture guard', () => {
     expect(code).toBe(1)
     expect(out).toContain('hub-peer-range')
     expect(out).toContain('adapter-only')
+    expect(out).toContain('no-crypto-deps')
   })
 })

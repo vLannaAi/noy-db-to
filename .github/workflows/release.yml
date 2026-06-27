@@ -95,6 +95,9 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Architecture invariants
+        run: pnpm check:architecture
+
       - name: Build
         run: pnpm build
 
@@ -107,6 +110,8 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The root package.json version is the lockstep canonical for the repo.
+      # Per-store version==tag enforcement (Step 1b) is added when stores land.
       - name: Verify package.json version matches release tag
         if: github.event_name == 'release'
         run: |

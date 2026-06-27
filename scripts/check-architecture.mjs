@@ -57,7 +57,9 @@ function checkHubPeerRange() {
 }
 
 // Rule 2 — adapter-only: store src may import @noy-db/hub ONLY via /adapter.
-const HUB_IMPORT_RE = /from\s+['"]@noy-db\/hub(\/[^'"]*)?['"]/g
+// Covers static imports (from/import), dynamic import(), require(), and bare
+// side-effect imports (import '@noy-db/hub').
+const HUB_IMPORT_RE = /(?:from|import|require)\s*\(?\s*['"]@noy-db\/hub(\/[^'"]*)?['"]/g
 function checkAdapterOnly() {
   for (const dir of listStoreDirs()) {
     const pj = readPkg(dir)
