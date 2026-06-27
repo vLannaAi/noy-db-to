@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@noy-db/hub': link:../noy-db/packages/hub
+
 importers:
 
   .:
@@ -26,6 +29,15 @@ importers:
       typescript-eslint:
         specifier: ^8.21.0
         version: 8.62.0(eslint@9.39.4)(typescript@5.9.3)
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/node@22.20.0)
+
+  test-support:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@22.20.0)
