@@ -126,6 +126,15 @@ importers:
         specifier: ^22.0.0
         version: 22.20.0
 
+  to-nfs:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: link:../../noy-db/packages/hub
+        version: link:../../noy-db/packages/hub
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
   to-postgres:
     devDependencies:
       '@noy-db/hub':
