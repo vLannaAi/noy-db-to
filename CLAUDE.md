@@ -7,34 +7,36 @@
 ## What this is
 
 `noy-db-to` holds the **non-essential storage adapters** for noy-db — the cloud / server /
-remote-filesystem `to-*` family extracted from the noy-db monorepo. The essential, default stores
-(`to-memory`, `to-file`, `to-browser-idb`, `to-probe`, `to-meter`) stay in `noy-db`; everything
-else lives here. Every adapter is a thin, ciphertext-only `NoydbStore` implementation.
+remote-filesystem `to-*` family. The essential, default stores (`to-memory`, `to-file`,
+`to-browser-idb`, `to-probe`, `to-meter`) live in `noy-db`; everything else lives here. Every
+adapter is a thin, ciphertext-only `NoydbStore` (or `NoydbPodStore`) implementation.
 
 ## Architecture boundary — ONE WAY, via the published seam
 
-Each store binds **only** to the published `@noy-db/hub/adapter` subpath (the `NoydbStore` contract +
+Each store binds **only** to the published `@noy-db/hub/to` subpath (the `NoydbStore` contract +
 envelope/snapshot/op types + store errors) — never hub internals, never the main barrel. `@noy-db/hub`
 is a **peerDependency at a range** (`^0.2.x`), never a `workspace:*` link. A noy-db release only forces
-a rebuild here when the adapter contract changes. `scripts/check-architecture.mjs` enforces this
-mechanically (hub-peer-range, adapter-only, no-crypto-deps).
+a rebuild here when the store contract changes. `scripts/check-architecture.mjs` enforces this
+mechanically (hub-peer-range, to-only, no-crypto-deps).
 
 ## Build / test
 
 ```bash
 pnpm install
 pnpm build        # pnpm -r build (tsup, ESM-only)
-pnpm test         # pnpm -r test (vitest) — runs the adapter-conformance kit against PUBLISHED @noy-db/hub
+pnpm test         # vitest run — every store's suite, against the PUBLISHED @noy-db/hub
 pnpm lint && pnpm typecheck
 pnpm check:architecture
 ```
 
-Tests run against the **published** `@noy-db/hub` + `@noy-db/test-adapter-conformance` (peer range +
-exact dev pin), validating the seam across the real published-package boundary — the klum-db model.
+Tests run against the **published** `@noy-db/hub` (ranged peer + exact dev pin), validating the seam
+across the real published-package boundary — the klum-db model. The adapter-conformance kit
+(`@noy-db/test-adapter-conformance`) is **vendored private** in `test-support/` (never published);
+stores consume it via `workspace:*` source resolution.
 
 ## Conventions
 
-- **ESM-only, Node `>=22`.** TDD; each store passes the published `@noy-db/test-adapter-conformance` suite.
+- **ESM-only, Node `>=22`.** TDD; each store passes the vendored `@noy-db/test-adapter-conformance` suite (or hand-written tests).
 - **Independent versioning** from noy-db — this repo bumps its own `0.2.0-pre.N` (lockstep across its stores).
 - **Stores see ciphertext only** — no crypto deps; the hub encrypts before any store is called.
 

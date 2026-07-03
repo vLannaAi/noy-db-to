@@ -30,7 +30,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/adapter'
+import type { NoydbStore } from '@noy-db/hub/to'
 import { jsonFile } from './internal-file-store.js'
 
 export interface NfsStoreOptions {

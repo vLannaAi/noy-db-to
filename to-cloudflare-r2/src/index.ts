@@ -38,7 +38,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/adapter'
+import type { NoydbStore } from '@noy-db/hub/to'
 import type { S3Client, S3ClientConfig } from '@aws-sdk/client-s3'
 import { S3Client as RealS3Client } from '@aws-sdk/client-s3'
 import { s3 } from '@noy-db/to-aws-s3'

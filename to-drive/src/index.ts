@@ -2,7 +2,7 @@
  * **@noy-db/to-drive** — Google Drive bundle store for noy-db.
  *
  * Stores each vault as a single `.noydb` bundle in Drive. Implements
- * the `NoydbBundleStore` contract (read/write/delete/list whole-bundle);
+ * the `NoydbPodStore` contract (read/write/delete/list whole-bundle);
  * wrap with `wrapBundleStore()` from `@noy-db/hub` to get the standard
  * six-method `NoydbStore` surface.
  *
@@ -48,8 +48,8 @@
  * @packageDocumentation
  */
 
-import type { NoydbBundleStore } from '@noy-db/hub/adapter'
-import { BundleVersionConflictError } from '@noy-db/hub/adapter'
+import type { NoydbPodStore } from '@noy-db/hub/to'
+import { PodVersionConflictError } from '@noy-db/hub/to'
 
 // ── Duck-typed Drive client ──────────────────────────────────────────────
 
@@ -174,7 +174,7 @@ export interface DriveStoreOptions {
 const APP_DATA_FOLDER = 'appDataFolder'
 const DEFAULT_MIME = 'application/octet-stream'
 
-export function drive(options: DriveStoreOptions): NoydbBundleStore {
+export function drive(options: DriveStoreOptions): NoydbPodStore {
   const parentId = options.parentId ?? APP_DATA_FOLDER
   const handles = options.handles ?? memoryHandleStore()
   const suffix = options.suffix ?? '.noydb'
@@ -207,7 +207,7 @@ export function drive(options: DriveStoreOptions): NoydbBundleStore {
       const handle = await handleFor(vaultId)
       if (!handle) {
         if (expectedVersion !== null) {
-          throw new BundleVersionConflictError(
+          throw new PodVersionConflictError(
             `No existing bundle for vault "${vaultId}" but expectedVersion="${expectedVersion}" was supplied.`,
           )
         }

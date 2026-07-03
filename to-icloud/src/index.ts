@@ -18,7 +18,7 @@
  *      macOS), and retries.
  *   2. **Conflict files.** Parallel writes from two devices create
  *      `name (device conflicted copy DATE).noydb`. This store detects
- *      those files and raises `BundleVersionConflictError`, giving the
+ *      those files and raises `PodVersionConflictError`, giving the
  *      caller a chance to merge deliberately.
  *   3. **Sync-not-yet-complete writes.** A completed `writeFile()` does
  *      not mean the bytes are on Apple's servers. `ping()` reports
@@ -38,8 +38,8 @@
  * @packageDocumentation
  */
 
-import type { NoydbBundleStore } from '@noy-db/hub/adapter'
-import { BundleVersionConflictError } from '@noy-db/hub/adapter'
+import type { NoydbPodStore } from '@noy-db/hub/to'
+import { PodVersionConflictError } from '@noy-db/hub/to'
 
 /** Default iCloud Drive folder name inside a user's mobile-documents tree. */
 export const DEFAULT_FOLDER = 'NoyDB'
@@ -79,10 +79,10 @@ function isConflictCopy(name: string, expected: string): boolean {
 }
 
 /**
- * Build a `NoydbBundleStore` over an iCloud Drive folder. Wrap with
+ * Build a `NoydbPodStore` over an iCloud Drive folder. Wrap with
  * `wrapBundleStore()` to consume via `createNoydb({ store })`.
  */
-export function icloud(options: ICloudStoreOptions): NoydbBundleStore {
+export function icloud(options: ICloudStoreOptions): NoydbPodStore {
   const suffix = options.suffix ?? '.noydb'
   const dir = options.folder.replace(/\/+$/, '')
   const { fs } = options
@@ -155,7 +155,7 @@ export function icloud(options: ICloudStoreOptions): NoydbBundleStore {
       // Conflict file present → refuse; caller merges.
       const conflict = await detectConflict(vaultId)
       if (conflict) {
-        throw new BundleVersionConflictError(
+        throw new PodVersionConflictError(
           `iCloud conflict file detected alongside "${vaultId}${suffix}": "${conflict}". ` +
           `Open iCloud Drive, resolve the conflict, then retry.`,
         )
@@ -164,7 +164,7 @@ export function icloud(options: ICloudStoreOptions): NoydbBundleStore {
       const stat = await fs.stat(path)
       const current = stat ? versionOf(stat) : null
       if (expectedVersion !== null && current !== null && expectedVersion !== current) {
-        throw new BundleVersionConflictError(
+        throw new PodVersionConflictError(
           `iCloud bundle version mismatch: expected ${expectedVersion}, found ${current}`,
         )
       }

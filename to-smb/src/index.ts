@@ -36,7 +36,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/adapter'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
 
 /**
  * Duck-typed SMB client. Compatible with `smb2` / `@marsaud/smb2`

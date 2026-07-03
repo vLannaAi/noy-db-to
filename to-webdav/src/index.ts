@@ -29,7 +29,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/adapter'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
 
 export interface WebDAVStoreOptions {
   /** Base URL of the WebDAV endpoint (with trailing slash optional). */

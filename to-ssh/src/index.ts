@@ -42,7 +42,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/adapter'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
 
 /**
  * Duck-typed subset of an SFTP client. Compatible with `ssh2`'s

@@ -39,7 +39,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/adapter'
+import type { NoydbStore } from '@noy-db/hub/to'
 import type { PostgresClient, PostgresStoreOptions } from '@noy-db/to-postgres'
 import { postgres } from '@noy-db/to-postgres'
 

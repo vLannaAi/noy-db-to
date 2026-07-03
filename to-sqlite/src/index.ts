@@ -30,8 +30,8 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/adapter'
-import { ConflictError } from '@noy-db/hub/adapter'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import { ConflictError } from '@noy-db/hub/to'
 
 /**
  * Duck-typed `Database` interface — intentionally minimal so every

@@ -17,8 +17,8 @@
 
 import { readFile, writeFile, mkdir, readdir, unlink, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/adapter'
-import { ConflictError } from '@noy-db/hub/adapter'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import { ConflictError } from '@noy-db/hub/to'
 
 export interface JsonFileOptions {
   /** Base directory for NOYDB data. */

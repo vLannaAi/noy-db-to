@@ -1,7 +1,7 @@
 /**
  * **s3Bundle** — whole-vault bundle store for noy-db over Amazon S3.
  *
- * Implements the `NoydbBundleStore` contract (read/write/delete/list of whole
+ * Implements the `NoydbPodStore` contract (read/write/delete/list of whole
  * `.noydb` blobs) with optimistic concurrency via S3 conditional writes. Pairs
  * with `@noy-db/hub` snapshots (`withSnapshots({ store: s3Bundle(...) })`) and
  * with bundle-mode sync.
@@ -10,14 +10,14 @@
  *
  * **OCC:** `writeBundle(id, bytes, expectedVersion)` —
  *   - `expectedVersion === null` → unconditional `PutObject` (first write / rolling overwrite).
- *   - `expectedVersion = <etag>` → `PutObject` with `IfMatch`; a 412 becomes `BundleVersionConflictError`.
+ *   - `expectedVersion = <etag>` → `PutObject` with `IfMatch`; a 412 becomes `PodVersionConflictError`.
  *
  * Requires `@aws-sdk/client-s3` ≥ 3.696 (conditional-write `IfMatch` on PutObject, GA Nov 2024).
  *
  * @packageDocumentation
  */
-import type { NoydbBundleStore } from '@noy-db/hub/adapter'
-import { BundleVersionConflictError } from '@noy-db/hub/adapter'
+import type { NoydbPodStore } from '@noy-db/hub/to'
+import { PodVersionConflictError } from '@noy-db/hub/to'
 import {
   S3Client,
   GetObjectCommand,
@@ -44,7 +44,7 @@ function stripQuotes(etag: string | undefined): string {
   return (etag ?? '').replace(/^"|"$/g, '')
 }
 
-export function s3Bundle(options: S3BundleOptions): NoydbBundleStore {
+export function s3Bundle(options: S3BundleOptions): NoydbPodStore {
   const { bucket, prefix = '' } = options
   const client = options.client ?? new S3Client({
     ...(options.region ? { region: options.region } : {}),
@@ -89,7 +89,7 @@ export function s3Bundle(options: S3BundleOptions): NoydbBundleStore {
       } catch (err: unknown) {
         const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
         if (err instanceof Error && (err.name === 'PreconditionFailed' || status === 412)) {
-          throw new BundleVersionConflictError(
+          throw new PodVersionConflictError(
             `S3 bundle "${vaultId}" changed since expectedVersion="${expectedVersion}".`,
           )
         }
