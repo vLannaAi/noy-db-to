@@ -23,7 +23,7 @@ function run(root: string): { code: number; out: string } {
 }
 
 describe('noy-db-to architecture guard', () => {
-  it('passes a compliant store (peer range + /adapter import)', () => {
+  it('passes a compliant store (peer range + /to import)', () => {
     const { code } = run(COMPLIANT)
     expect(code).toBe(0)
   })
@@ -32,7 +32,7 @@ describe('noy-db-to architecture guard', () => {
     const { code, out } = run(VIOLATING)
     expect(code).toBe(1)
     expect(out).toContain('hub-peer-range')
-    expect(out).toContain('adapter-only')
+    expect(out).toContain('to-only')
     expect(out).toContain('no-crypto-deps')
   })
 })

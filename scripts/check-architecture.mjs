@@ -56,11 +56,11 @@ function checkHubPeerRange() {
   }
 }
 
-// Rule 2 — adapter-only: store src may import @noy-db/hub ONLY via /adapter.
+// Rule 2 — to-only: store src may import @noy-db/hub ONLY via /to.
 // Covers static imports (from/import), dynamic import(), require(), and bare
 // side-effect imports (import '@noy-db/hub').
 const HUB_IMPORT_RE = /(?:from|import|require)\s*\(?\s*['"]@noy-db\/hub(\/[^'"]*)?['"]/g
-function checkAdapterOnly() {
+function checkToOnly() {
   for (const dir of listStoreDirs()) {
     const pj = readPkg(dir)
     walkTs(join(dir, 'src'), (file, code) => {
@@ -68,8 +68,8 @@ function checkAdapterOnly() {
       const re = new RegExp(HUB_IMPORT_RE.source, 'g')
       while ((m = re.exec(code)) !== null) {
         const sub = m[1] ?? ''
-        if (sub !== '/adapter')
-          fail('adapter-only', `${pj.name}: imports '@noy-db/hub${sub}' — stores must import only '@noy-db/hub/adapter'.`, file)
+        if (sub !== '/to')
+          fail('to-only', `${pj.name}: imports '@noy-db/hub${sub}' — stores must import only '@noy-db/hub/to'.`, file)
       }
     })
   }
@@ -90,7 +90,7 @@ function checkNoCryptoDeps() {
 }
 
 checkHubPeerRange()
-checkAdapterOnly()
+checkToOnly()
 checkNoCryptoDeps()
 
 if (failures > 0) {

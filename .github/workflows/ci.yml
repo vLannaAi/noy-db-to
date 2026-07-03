@@ -41,6 +41,8 @@ jobs:
           restore-keys: ${{ runner.os }}-pnpm-
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
       - name: Architecture invariants
         run: pnpm check:architecture
       - name: Lint
