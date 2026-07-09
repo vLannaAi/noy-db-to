@@ -10,11 +10,13 @@ import { sqlite, type SqliteDatabase, type SqliteStatement } from '../src/index.
  * NOT a general SQL engine. Mirrors the shape of the real store's
  * queries so every CRUD path is exercised without a native binary.
  */
+interface Row {
+  vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
+  iv?: string | null; data?: string | null
+  by?: string | null; tier?: number | null; elevated_by?: string | null; det?: string | null; del?: number | null
+}
+
 function mockDb(): SqliteDatabase & { rows: Map<string, Row> } {
-  interface Row {
-    vault: string; collection: string; id: string; v: number; ts: string; iv: string; data: string
-    by: string | null; tier: number | null; elevated_by: string | null; det: string | null
-  }
   const rows = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
 
@@ -23,10 +25,8 @@ function mockDb(): SqliteDatabase & { rows: Map<string, Row> } {
     return {
       run(...params: readonly unknown[]) {
         if (/^INSERT INTO/i.test(normalized)) {
-          const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det] = params as [
-            string, string, string, number, string, string, string, string | null, number | null, string | null, string | null,
-          ]
-          rows.set(key(vault, collection, id), { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det })
+          const [vault, collection, id, v, ts, env] = params as [string, string, string, number, string, string]
+          rows.set(key(vault, collection, id), { vault, collection, id, v, ts, env })
           return { changes: 1 }
         }
         if (/^DELETE FROM/i.test(normalized)) {
@@ -67,7 +67,7 @@ function mockDb(): SqliteDatabase & { rows: Map<string, Row> } {
             .map(r => ({ id: r.id }))
         }
         if (/^SELECT \* FROM .* WHERE vault = \? AND collection = \? ORDER BY id LIMIT \? OFFSET \?/i.test(normalized) ||
-            /^SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM/i.test(normalized)) {
+            /^SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM/i.test(normalized)) {
           const [vault, collection, limit, offset] = params as [string, string, number, number]
           return [...rows.values()]
             .filter(r => r.vault === vault && r.collection === collection)
@@ -136,6 +136,38 @@ describe('@noy-db/to-sqlite', () => {
     expect(out).toEqual(envelope)
   })
 
+  it('round-trips a _del delete-marker envelope byte-identically', async () => {
+    const envelope: EncryptedEnvelope = {
+      _noydb: 1,
+      _v: 2,
+      _ts: new Date(1700002000000).toISOString(),
+      _iv: '',
+      _data: '',
+      _del: true,
+    }
+    await store.put('v1', 'c1', 'del1', envelope)
+    expect(await store.get('v1', 'c1', 'del1')).toEqual(envelope)
+  })
+
+  it('round-trips a maximal envelope byte-identically (every field survives, not just _del)', async () => {
+    const envelope: EncryptedEnvelope = {
+      _noydb: 1,
+      _v: 3,
+      _ts: new Date(1700003000000).toISOString(),
+      _iv: 'aaaa',
+      _data: 'ciphertext-maximal',
+      _by: 'alice',
+      _tier: 2,
+      _elevatedBy: 'bob',
+      _det: { email: 'abc:def' },
+      _cek: 'wrapped-cek-b64',
+      _debug: 1,
+      _del: true,
+    }
+    await store.put('v1', 'c1', 'maximal1', envelope)
+    expect(await store.get('v1', 'c1', 'maximal1')).toEqual(envelope)
+  })
+
   it('list returns sorted ids', async () => {
     await store.put('v1', 'c1', 'b', env(1))
     await store.put('v1', 'c1', 'a', env(1))
@@ -202,5 +234,43 @@ describe('@noy-db/to-sqlite', () => {
 
   it('ping returns true for a live database', async () => {
     expect(await store.ping!()).toBe(true)
+  })
+
+  it('reconstructs a legacy row (env absent, per-field columns populated) via dual-read fallback', async () => {
+    // Simulates a row written before the `env` migration: `env` key is
+    // OMITTED entirely (not `null`) — this is what `SELECT *` yields for a
+    // table that predates the `env` column, and is the exact shape that
+    // crashed the old `row.env !== null` strict check (Critical 2:
+    // `undefined !== null` is true, so `JSON.parse(undefined)` threw).
+    // Seeded directly into the mock's backing store — never went through
+    // `store.put()`.
+    db.rows.set('v1\x00c1\x00legacy1', {
+      vault: 'v1',
+      collection: 'c1',
+      id: 'legacy1',
+      v: 7,
+      ts: '2026-01-01T00:00:00.000Z',
+      iv: 'legacy-iv',
+      data: 'legacy-ciphertext',
+      by: 'carol',
+      tier: 3,
+      elevated_by: 'dave',
+      det: JSON.stringify({ ssn: 'abc:def' }),
+      del: 1,
+    })
+
+    const out = await store.get('v1', 'c1', 'legacy1')
+    expect(out).toEqual({
+      _noydb: 1,
+      _v: 7,
+      _ts: '2026-01-01T00:00:00.000Z',
+      _iv: 'legacy-iv',
+      _data: 'legacy-ciphertext',
+      _by: 'carol',
+      _tier: 3,
+      _elevatedBy: 'dave',
+      _det: { ssn: 'abc:def' },
+      _del: true,
+    })
   })
 })

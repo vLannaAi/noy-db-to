@@ -63,18 +63,30 @@ interface Row {
   id: string
   v: number
   ts: string
-  iv: string
-  data: string
+  env: string | null
+  iv: string | null
+  data: string | null
   by: string | null
   tier: number | null
   elevated_by: string | null
   det: string | null
+  del: number | null
 }
 
 export function sqlite(options: SqliteStoreOptions): NoydbStore {
   const { db, tableName = 'noydb_envelopes', autoMigrate = true } = options
 
   if (autoMigrate) {
+    // New writes only populate vault/collection/id/v/ts/env — `env` is
+    // `JSON.stringify(envelope)`, the ENTIRE envelope, so no field (including
+    // ones this store doesn't know about, e.g. `_cek`/`_debug`) is ever
+    // silently dropped. `v`/`ts` stay as real columns because CAS (`WHERE
+    // v = ?`) and ordering need to query them without deserializing `env`.
+    // iv/data are still written on every upsert (see `upsert`) so the
+    // NOT NULL constraint keeps holding on tables created before this
+    // migration; by/tier/elevated_by/det/del are LEGACY columns, kept
+    // nullable for dual-read of rows written before this migration (see
+    // `rowToEnvelope`) — no data migration script required (pre-1.0).
     db.exec(`
       CREATE TABLE IF NOT EXISTS ${tableName} (
         vault TEXT NOT NULL,
@@ -82,14 +94,29 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
         id TEXT NOT NULL,
         v INTEGER NOT NULL,
         ts TEXT NOT NULL,
+        env TEXT,
         iv TEXT NOT NULL,
         data TEXT NOT NULL,
         by TEXT,
         tier INTEGER,
         elevated_by TEXT,
         det TEXT,
+        del INTEGER,
         PRIMARY KEY (vault, collection, id)
       );
+    `)
+    // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
+    // exists from before this migration — it has no `env` column, so every
+    // write/read would fail otherwise. `ALTER TABLE ADD COLUMN` is the only
+    // way to backfill it; on a table that was just created fresh above (env
+    // already in the DDL) this throws "duplicate column name", which is
+    // swallowed as the expected no-op. Anything else rethrows.
+    try {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN env TEXT`)
+    } catch (err) {
+      if (!(err instanceof Error) || !err.message.includes('duplicate column name')) throw err
+    }
+    db.exec(`
       CREATE INDEX IF NOT EXISTS idx_${tableName}_vault_collection
         ON ${tableName} (vault, collection);
       CREATE INDEX IF NOT EXISTS idx_${tableName}_vault_collection_ts
@@ -98,16 +125,22 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
   }
 
   function rowToEnvelope(row: Row): EncryptedEnvelope {
+    if (row.env != null) {
+      return JSON.parse(row.env) as EncryptedEnvelope
+    }
+    // Legacy dual-read fallback: row written before the `env` migration —
+    // reconstruct from the old per-column layout.
     const env: EncryptedEnvelope = {
       _noydb: 1,
       _v: row.v,
       _ts: row.ts,
-      _iv: row.iv,
-      _data: row.data,
+      _iv: row.iv ?? '',
+      _data: row.data ?? '',
       ...(row.by !== null && { _by: row.by }),
       ...(row.tier !== null && { _tier: row.tier }),
       ...(row.elevated_by !== null && { _elevatedBy: row.elevated_by }),
       ...(row.det !== null && { _det: JSON.parse(row.det) as Record<string, string> }),
+      ...(row.del === 1 && { _del: true as const }),
     }
     return env
   }
@@ -129,23 +162,19 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
     }
 
     db.prepare(
-      `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO ${tableName} (vault, collection, id, v, ts, env, iv, data)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(vault, collection, id) DO UPDATE SET
-         v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-         by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+         v = excluded.v, ts = excluded.ts, env = excluded.env, iv = excluded.iv, data = excluded.data`,
     ).run(
       vault,
       collection,
       id,
       envelope._v,
       envelope._ts,
+      JSON.stringify(envelope),
       envelope._iv,
       envelope._data,
-      envelope._by ?? null,
-      envelope._tier ?? null,
-      envelope._elevatedBy ?? null,
-      envelope._det ? JSON.stringify(envelope._det) : null,
     )
   }
 
@@ -223,7 +252,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
 
       const rows = db
         .prepare(
-          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM ${tableName}
+          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
            WHERE vault = ? AND collection = ?
            ORDER BY id LIMIT ? OFFSET ?`,
         )

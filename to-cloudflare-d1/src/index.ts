@@ -65,6 +65,16 @@ export function d1(options: D1StoreOptions): NoydbStore {
     if (!autoMigrate) return
     if (!schemaReady) {
       schemaReady = (async () => {
+        // New writes only populate vault/collection/id/v/ts/env — `env` is
+        // `JSON.stringify(envelope)`, the ENTIRE envelope, so no field (including
+        // ones this store doesn't know about, e.g. `_cek`/`_debug`) is ever
+        // silently dropped. `v`/`ts` stay as real columns because CAS (`WHERE
+        // v = ?`) and ordering need to query them without deserializing `env`.
+        // iv/data are still written on every upsert (see `upsertStatement`) so
+        // the NOT NULL constraint keeps holding on tables created before this
+        // migration; by/tier/elevated_by/det/del are LEGACY columns, kept
+        // nullable for dual-read of rows written before this migration (see
+        // `rowToEnvelope`) — no data migration script required (pre-1.0).
         await db
           .prepare(
             `CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -73,16 +83,29 @@ export function d1(options: D1StoreOptions): NoydbStore {
                id TEXT NOT NULL,
                v INTEGER NOT NULL,
                ts TEXT NOT NULL,
+               env TEXT,
                iv TEXT NOT NULL,
                data TEXT NOT NULL,
                by TEXT,
                tier INTEGER,
                elevated_by TEXT,
                det TEXT,
+               del INTEGER,
                PRIMARY KEY (vault, collection, id)
              )`,
           )
           .run()
+        // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that
+        // already exists from before this migration — it has no `env`
+        // column, so every write/read would fail otherwise. `ALTER TABLE
+        // ADD COLUMN` backfills it; on a table just created fresh above
+        // (env already in the DDL) this throws "duplicate column name",
+        // swallowed as the expected no-op. Anything else rethrows.
+        try {
+          await db.prepare(`ALTER TABLE ${tableName} ADD COLUMN env TEXT`).run()
+        } catch (err) {
+          if (!(err instanceof Error) || !err.message.toLowerCase().includes('duplicate column name')) throw err
+        }
         await db
           .prepare(`CREATE INDEX IF NOT EXISTS idx_${tableName}_vc ON ${tableName} (vault, collection)`)
           .run()
@@ -92,10 +115,17 @@ export function d1(options: D1StoreOptions): NoydbStore {
   }
 
   function rowToEnvelope(row: Record<string, unknown>): EncryptedEnvelope {
+    const envRaw = row.env as string | null
+    if (envRaw != null) {
+      return JSON.parse(envRaw) as EncryptedEnvelope
+    }
+    // Legacy dual-read fallback: row written before the `env` migration —
+    // reconstruct from the old per-column layout.
     const by = row.by as string | null
     const tier = row.tier as number | null
     const elevatedBy = row.elevated_by as string | null
     const detRaw = row.det as string | null
+    const del = row.del as number | null
     return {
       _noydb: 1,
       _v: row.v as number,
@@ -106,6 +136,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       ...(tier !== null && { _tier: tier }),
       ...(elevatedBy !== null && { _elevatedBy: elevatedBy }),
       ...(detRaw !== null && { _det: JSON.parse(detRaw) as Record<string, string> }),
+      ...(del === 1 && { _del: true as const }),
     }
   }
 
@@ -117,20 +148,12 @@ export function d1(options: D1StoreOptions): NoydbStore {
   ): D1PreparedStatement {
     return db
       .prepare(
-        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO ${tableName} (vault, collection, id, v, ts, env, iv, data)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(vault, collection, id) DO UPDATE SET
-           v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+           v = excluded.v, ts = excluded.ts, env = excluded.env, iv = excluded.iv, data = excluded.data`,
       )
-      .bind(
-        vault, collection, id,
-        envelope._v, envelope._ts, envelope._iv, envelope._data,
-        envelope._by ?? null,
-        envelope._tier ?? null,
-        envelope._elevatedBy ?? null,
-        envelope._det ? JSON.stringify(envelope._det) : null,
-      )
+      .bind(vault, collection, id, envelope._v, envelope._ts, JSON.stringify(envelope), envelope._iv, envelope._data)
   }
 
   async function upsert(
@@ -234,7 +257,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       const afterId = cursor ?? ''
       const res = await db
         .prepare(
-          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM ${tableName}
+          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
            WHERE vault = ? AND collection = ? AND id > ?
            ORDER BY id LIMIT ?`,
         )

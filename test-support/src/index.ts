@@ -239,6 +239,40 @@ export function runStoreConformanceTests(
         expect(result?._iv).toBe('')
         expect(result?._data).toBe('')
       })
+
+      it('round-trips a _del delete-marker envelope byte-identically', async () => {
+        const envelope: EncryptedEnvelope = {
+          _noydb: 1,
+          _v: 2,
+          _ts: new Date().toISOString(),
+          _iv: '',
+          _data: '',
+          _del: true,
+        }
+        await adapter.put('comp1', 'coll1', 'del1', envelope)
+        const result = await adapter.get('comp1', 'coll1', 'del1')
+        expect(result).toEqual(envelope)
+      })
+
+      it('round-trips a maximal envelope byte-identically (every field survives, not just _del)', async () => {
+        const envelope: EncryptedEnvelope = {
+          _noydb: 1,
+          _v: 3,
+          _ts: new Date().toISOString(),
+          _iv: 'dGVzdC1pdi0xMjM0',
+          _data: Buffer.from('maximal-envelope-ciphertext').toString('base64'),
+          _by: 'alice',
+          _tier: 2,
+          _elevatedBy: 'bob',
+          _det: { email: 'abc:def' },
+          _cek: 'wrapped-cek-b64',
+          _debug: 1,
+          _del: true,
+        }
+        await adapter.put('comp1', 'coll1', 'maximal1', envelope)
+        const result = await adapter.get('comp1', 'coll1', 'maximal1')
+        expect(result).toEqual(envelope)
+      })
     })
 
     // ─── Internal Collection Filtering ─────────────────────────────
