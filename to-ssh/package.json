@@ -45,7 +45,7 @@
     }
   },
   "devDependencies": {
-    "@noy-db/hub": "^0.3.0-pre.1",
+    "@noy-db/hub": "0.3.0-pre.7",
     "@types/node": "^22.0.0"
   },
   "keywords": [

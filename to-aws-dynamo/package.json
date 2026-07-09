@@ -37,14 +37,14 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@noy-db/hub": "^0.3.0-pre.1",
     "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/lib-dynamodb": "^3.0.0"
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "@noy-db/hub": "^0.3.0-pre.1"
   },
   "devDependencies": {
-    "@noy-db/hub": "^0.3.0-pre.1",
     "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/lib-dynamodb": "^3.0.0"
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "@noy-db/hub": "0.3.0-pre.7"
   },
   "keywords": [
     "noy-db",

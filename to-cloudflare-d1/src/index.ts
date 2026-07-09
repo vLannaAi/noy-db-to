@@ -79,6 +79,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
                tier INTEGER,
                elevated_by TEXT,
                det TEXT,
+               del INTEGER,
                PRIMARY KEY (vault, collection, id)
              )`,
           )
@@ -96,6 +97,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
     const tier = row.tier as number | null
     const elevatedBy = row.elevated_by as string | null
     const detRaw = row.det as string | null
+    const del = row.del as number | null
     return {
       _noydb: 1,
       _v: row.v as number,
@@ -106,6 +108,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       ...(tier !== null && { _tier: tier }),
       ...(elevatedBy !== null && { _elevatedBy: elevatedBy }),
       ...(detRaw !== null && { _det: JSON.parse(detRaw) as Record<string, string> }),
+      ...(del === 1 && { _del: true as const }),
     }
   }
 
@@ -117,11 +120,12 @@ export function d1(options: D1StoreOptions): NoydbStore {
   ): D1PreparedStatement {
     return db
       .prepare(
-        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(vault, collection, id) DO UPDATE SET
            v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
+           del = excluded.del`,
       )
       .bind(
         vault, collection, id,
@@ -130,6 +134,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
         envelope._tier ?? null,
         envelope._elevatedBy ?? null,
         envelope._det ? JSON.stringify(envelope._det) : null,
+        envelope._del ? 1 : null,
       )
   }
 
@@ -234,7 +239,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       const afterId = cursor ?? ''
       const res = await db
         .prepare(
-          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM ${tableName}
+          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
            WHERE vault = ? AND collection = ? AND id > ?
            ORDER BY id LIMIT ?`,
         )

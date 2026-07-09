@@ -69,6 +69,7 @@ interface Row {
   tier: number | null
   elevated_by: string | null
   det: string | null
+  del: number | null
 }
 
 export function sqlite(options: SqliteStoreOptions): NoydbStore {
@@ -88,6 +89,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
         tier INTEGER,
         elevated_by TEXT,
         det TEXT,
+        del INTEGER,
         PRIMARY KEY (vault, collection, id)
       );
       CREATE INDEX IF NOT EXISTS idx_${tableName}_vault_collection
@@ -108,6 +110,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
       ...(row.tier !== null && { _tier: row.tier }),
       ...(row.elevated_by !== null && { _elevatedBy: row.elevated_by }),
       ...(row.det !== null && { _det: JSON.parse(row.det) as Record<string, string> }),
+      ...(row.del === 1 && { _del: true as const }),
     }
     return env
   }
@@ -129,11 +132,12 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
     }
 
     db.prepare(
-      `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(vault, collection, id) DO UPDATE SET
          v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-         by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+         by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
+         del = excluded.del`,
     ).run(
       vault,
       collection,
@@ -146,6 +150,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
       envelope._tier ?? null,
       envelope._elevatedBy ?? null,
       envelope._det ? JSON.stringify(envelope._det) : null,
+      envelope._del ? 1 : null,
     )
   }
 
@@ -223,7 +228,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
 
       const rows = db
         .prepare(
-          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM ${tableName}
+          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
            WHERE vault = ? AND collection = ?
            ORDER BY id LIMIT ? OFFSET ?`,
         )

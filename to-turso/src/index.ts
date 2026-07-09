@@ -68,6 +68,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
              tier INTEGER,
              elevated_by TEXT,
              det TEXT,
+             del INTEGER,
              PRIMARY KEY (vault, collection, id)
            )`,
         )
@@ -95,6 +96,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
       ...(tier !== null && { _tier: tier }),
       ...(elevatedBy !== null && { _elevatedBy: elevatedBy }),
       ...(detRaw !== null && { _det: JSON.parse(detRaw) as Record<string, string> }),
+      ...(row.del === 1 && { _del: true as const }),
     }
   }
 
@@ -114,6 +116,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
       envelope._tier ?? null,
       envelope._elevatedBy ?? null,
       envelope._det ? JSON.stringify(envelope._det) : null,
+      envelope._del ? 1 : null,
     ] as const
 
     if (expectedVersion !== undefined) {
@@ -122,8 +125,8 @@ export function turso(options: TursoStoreOptions): NoydbStore {
         // RETURNING is empty if the row already existed → ConflictError.
         const result = await client.execute({
           sql: `INSERT OR IGNORE INTO ${tableName}
-                  (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+                  (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
           args: envelopeArgs,
         })
         if (result.rows.length === 0) {
@@ -140,7 +143,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
       // sees 0 RETURNING rows after the first writer commits.
       const result = await client.execute({
         sql: `UPDATE ${tableName}
-              SET v = ?, ts = ?, iv = ?, data = ?, by = ?, tier = ?, elevated_by = ?, det = ?
+              SET v = ?, ts = ?, iv = ?, data = ?, by = ?, tier = ?, elevated_by = ?, det = ?, del = ?
               WHERE vault = ? AND collection = ? AND id = ? AND v = ?
               RETURNING id`,
         args: [
@@ -149,6 +152,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
           envelope._tier ?? null,
           envelope._elevatedBy ?? null,
           envelope._det ? JSON.stringify(envelope._det) : null,
+          envelope._del ? 1 : null,
           vault, collection, id, expectedVersion,
         ],
       })
@@ -166,11 +170,12 @@ export function turso(options: TursoStoreOptions): NoydbStore {
     // Unconditional upsert — no version guard.
     await client.execute({
       sql:
-        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(vault, collection, id) DO UPDATE SET
            v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
+           del = excluded.del`,
       args: envelopeArgs,
     })
   }
@@ -247,11 +252,12 @@ export function turso(options: TursoStoreOptions): NoydbStore {
           for (const [id, envelope] of Object.entries(recs)) {
             statements.push({
               sql:
-                `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(vault, collection, id) DO UPDATE SET
                    v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-                   by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+                   by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
+                   del = excluded.del`,
               args: [
                 vault, collection, id,
                 envelope._v, envelope._ts, envelope._iv, envelope._data,
@@ -259,6 +265,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
                 envelope._tier ?? null,
                 envelope._elevatedBy ?? null,
                 envelope._det ? JSON.stringify(envelope._det) : null,
+                envelope._del ? 1 : null,
               ],
             })
           }
@@ -288,7 +295,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
       await ensureSchema()
       const afterId = cursor ?? ''
       const result = await client.execute({
-        sql: `SELECT id, v, ts, iv, data, by, tier, elevated_by, det FROM ${tableName}
+        sql: `SELECT id, v, ts, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
               WHERE vault = ? AND collection = ? AND id > ?
               ORDER BY id LIMIT ?`,
         args: [vault, collection, afterId, limit + 1],
@@ -312,11 +319,12 @@ export function turso(options: TursoStoreOptions): NoydbStore {
             if (!op.envelope) throw new Error(`tx put op missing envelope for ${op.id}`)
             statements.push({
               sql:
-                `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(vault, collection, id) DO UPDATE SET
                    v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-                   by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det`,
+                   by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
+                   del = excluded.del`,
               args: [
                 op.vault, op.collection, op.id,
                 op.envelope._v, op.envelope._ts, op.envelope._iv, op.envelope._data,
@@ -324,6 +332,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
                 op.envelope._tier ?? null,
                 op.envelope._elevatedBy ?? null,
                 op.envelope._det ? JSON.stringify(op.envelope._det) : null,
+                op.envelope._del ? 1 : null,
               ],
             })
           } else {

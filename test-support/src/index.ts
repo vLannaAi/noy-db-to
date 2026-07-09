@@ -239,6 +239,20 @@ export function runStoreConformanceTests(
         expect(result?._iv).toBe('')
         expect(result?._data).toBe('')
       })
+
+      it('round-trips a _del delete-marker envelope byte-identically', async () => {
+        const envelope: EncryptedEnvelope = {
+          _noydb: 1,
+          _v: 2,
+          _ts: new Date().toISOString(),
+          _iv: '',
+          _data: '',
+          _del: true,
+        }
+        await adapter.put('comp1', 'coll1', 'del1', envelope)
+        const result = await adapter.get('comp1', 'coll1', 'del1')
+        expect(result).toEqual(envelope)
+      })
     })
 
     // ─── Internal Collection Filtering ─────────────────────────────

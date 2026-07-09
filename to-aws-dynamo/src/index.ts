@@ -138,6 +138,7 @@ export function dynamo(options: DynamoOptions): NoydbStore {
       _ts: item['_ts'] as string,
       _iv: item['_iv'] as string,
       _data: item['_data'] as string,
+      ...(item['_del'] === true && { _del: true as const }),
     }
   }
 
@@ -179,6 +180,7 @@ export function dynamo(options: DynamoOptions): NoydbStore {
         _ts: envelope._ts,
         _iv: envelope._iv,
         _data: envelope._data,
+        ...(envelope._del !== undefined && { _del: envelope._del }),
       }
 
       const input: PutCommandInput = { TableName: table, Item: item }

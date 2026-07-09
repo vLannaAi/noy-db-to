@@ -6,7 +6,7 @@ import { turso, type LibsqlClient } from '../src/index.js'
 function mockLibsql(): LibsqlClient & { rowMap: Map<string, Row> } {
   interface Row {
     vault: string; collection: string; id: string; v: number; ts: string; iv: string; data: string
-    by: string | null; tier: number | null; elevated_by: string | null; det: string | null
+    by: string | null; tier: number | null; elevated_by: string | null; det: string | null; del: number | null
   }
   const rowMap = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
@@ -18,33 +18,33 @@ function mockLibsql(): LibsqlClient & { rowMap: Map<string, Row> } {
     if (normalized.startsWith('INSERT OR IGNORE INTO')) {
       // Create-only CAS path (expectedVersion === 0). RETURNING id is empty
       // when the row already exists (the INSERT is ignored).
-      const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det] = args as [
-        string, string, string, number, string, string, string, string | null, number | null, string | null, string | null,
+      const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del] = args as [
+        string, string, string, number, string, string, string, string | null, number | null, string | null, string | null, number | null,
       ]
       const k = key(vault, collection, id)
       if (rowMap.has(k)) return { rows: [] }
-      rowMap.set(k, { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det })
+      rowMap.set(k, { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del })
       return { rows: [{ id }] }
     }
     if (normalized.startsWith('UPDATE')) {
       // Update-only CAS path. args = [v, ts, iv, data, by, tier, elevated_by,
-      // det, vault, collection, id, expectedVersion]. RETURNING id is empty
+      // det, del, vault, collection, id, expectedVersion]. RETURNING id is empty
       // when no row matches (missing, or v !== expectedVersion).
-      const [v, ts, iv, data, by, tier, elevated_by, det, vault, collection, id, expectedV] = args as [
-        number, string, string, string, string | null, number | null, string | null, string | null,
+      const [v, ts, iv, data, by, tier, elevated_by, det, del, vault, collection, id, expectedV] = args as [
+        number, string, string, string, string | null, number | null, string | null, string | null, number | null,
         string, string, string, number,
       ]
       const k = key(vault, collection, id)
       const existing = rowMap.get(k)
       if (!existing || existing.v !== expectedV) return { rows: [] }
-      rowMap.set(k, { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det })
+      rowMap.set(k, { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del })
       return { rows: [{ id }] }
     }
     if (normalized.startsWith('INSERT INTO')) {
-      const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det] = args as [
-        string, string, string, number, string, string, string, string | null, number | null, string | null, string | null,
+      const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del] = args as [
+        string, string, string, number, string, string, string, string | null, number | null, string | null, string | null, number | null,
       ]
-      rowMap.set(key(vault, collection, id), { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det })
+      rowMap.set(key(vault, collection, id), { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del })
       return { rows: [] }
     }
     if (normalized.startsWith('DELETE FROM')) {
@@ -71,7 +71,7 @@ function mockLibsql(): LibsqlClient & { rowMap: Map<string, Row> } {
           .map(r => ({ id: r.id })),
       }
     }
-    if (normalized.startsWith('SELECT ID, V, TS, IV, DATA, BY, TIER, ELEVATED_BY, DET FROM')) {
+    if (normalized.startsWith('SELECT ID, V, TS, IV, DATA, BY, TIER, ELEVATED_BY, DET, DEL FROM')) {
       const [vault, collection, afterId, limit] = args as [string, string, string, number]
       const matched = [...rowMap.values()]
         .filter(r => r.vault === vault && r.collection === collection && r.id > afterId)
@@ -132,6 +132,19 @@ describe('@noy-db/to-turso', () => {
     const envelope: EncryptedEnvelope = { ...env(1), _tier: 2, _elevatedBy: 'bob', _det: { email: 'abc:def' } }
     await store.put('v1', 'c1', 'r1', envelope)
     expect(await store.get('v1', 'c1', 'r1')).toEqual(envelope)
+  })
+
+  it('round-trips a _del delete-marker envelope byte-identically', async () => {
+    const envelope: EncryptedEnvelope = {
+      _noydb: 1,
+      _v: 2,
+      _ts: new Date(1700002000000).toISOString(),
+      _iv: '',
+      _data: '',
+      _del: true,
+    }
+    await store.put('v1', 'c1', 'del1', envelope)
+    expect(await store.get('v1', 'c1', 'del1')).toEqual(envelope)
   })
 
   it('list returns sorted ids', async () => {
