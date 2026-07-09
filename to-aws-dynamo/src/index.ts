@@ -87,10 +87,17 @@ interface QueryCommandInput {
  * Table schema:
  * - pk (String, partition key): vault name
  * - sk (String, sort key): `{collection}#{id}` or `_keyring#{userId}` or `_sync#meta`
- * - _v (Number): record version
- * - _ts (String): timestamp
- * - _iv (String): base64 IV
- * - _data (String): base64 ciphertext
+ * - _v (Number): record version — kept as its own attribute for the
+ *   `ConditionExpression` compare-and-swap
+ * - _ts (String): timestamp — kept as its own attribute for ordering
+ * - _env (String): `JSON.stringify(envelope)` — the ENTIRE envelope, every
+ *   field. New writes only touch pk/sk/_v/_ts/_env; the whole record
+ *   round-trips through this one opaque attribute (no more silently
+ *   dropping fields the item-mapper doesn't know about, e.g. `_cek`/`_debug`).
+ * - _iv, _data, _del (legacy, optional): per-field attributes written by
+ *   versions of this store before the `_env` migration. Retained ONLY so
+ *   rows written before this change keep reading correctly (dual-read
+ *   fallback in `itemToEnvelope`) — no data migration required (pre-1.0).
  */
 export function dynamo(options: DynamoOptions): NoydbStore {
   const { table } = options
@@ -132,6 +139,12 @@ export function dynamo(options: DynamoOptions): NoydbStore {
   }
 
   function itemToEnvelope(item: Record<string, unknown>): EncryptedEnvelope {
+    const env = item['_env'] as string | undefined
+    if (env != null) {
+      return JSON.parse(env) as EncryptedEnvelope
+    }
+    // Legacy dual-read fallback: item written before the `_env` migration —
+    // reconstruct from the old per-attribute layout.
     return {
       _noydb: 1,
       _v: item['_v'] as number,
@@ -175,12 +188,9 @@ export function dynamo(options: DynamoOptions): NoydbStore {
       const item: Record<string, unknown> = {
         pk: vault,
         sk: sk(collection, id),
-        _noydb: envelope._noydb,
         _v: envelope._v,
         _ts: envelope._ts,
-        _iv: envelope._iv,
-        _data: envelope._data,
-        ...(envelope._del !== undefined && { _del: envelope._del }),
+        _env: JSON.stringify(envelope),
       }
 
       const input: PutCommandInput = { TableName: table, Item: item }

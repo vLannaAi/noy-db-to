@@ -65,6 +65,14 @@ export function d1(options: D1StoreOptions): NoydbStore {
     if (!autoMigrate) return
     if (!schemaReady) {
       schemaReady = (async () => {
+        // New writes only populate vault/collection/id/v/ts/env — `env` is
+        // `JSON.stringify(envelope)`, the ENTIRE envelope, so no field (including
+        // ones this store doesn't know about, e.g. `_cek`/`_debug`) is ever
+        // silently dropped. `v`/`ts` stay as real columns because CAS (`WHERE
+        // v = ?`) and ordering need to query them without deserializing `env`.
+        // iv/data/by/tier/elevated_by/det/del are LEGACY columns, kept nullable
+        // for dual-read of rows written before this migration (see
+        // `rowToEnvelope`) — no data migration required (pre-1.0).
         await db
           .prepare(
             `CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -73,8 +81,9 @@ export function d1(options: D1StoreOptions): NoydbStore {
                id TEXT NOT NULL,
                v INTEGER NOT NULL,
                ts TEXT NOT NULL,
-               iv TEXT NOT NULL,
-               data TEXT NOT NULL,
+               env TEXT,
+               iv TEXT,
+               data TEXT,
                by TEXT,
                tier INTEGER,
                elevated_by TEXT,
@@ -93,6 +102,12 @@ export function d1(options: D1StoreOptions): NoydbStore {
   }
 
   function rowToEnvelope(row: Record<string, unknown>): EncryptedEnvelope {
+    const envRaw = row.env as string | null
+    if (envRaw != null) {
+      return JSON.parse(envRaw) as EncryptedEnvelope
+    }
+    // Legacy dual-read fallback: row written before the `env` migration —
+    // reconstruct from the old per-column layout.
     const by = row.by as string | null
     const tier = row.tier as number | null
     const elevatedBy = row.elevated_by as string | null
@@ -120,22 +135,12 @@ export function d1(options: D1StoreOptions): NoydbStore {
   ): D1PreparedStatement {
     return db
       .prepare(
-        `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO ${tableName} (vault, collection, id, v, ts, env)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(vault, collection, id) DO UPDATE SET
-           v = excluded.v, ts = excluded.ts, iv = excluded.iv, data = excluded.data,
-           by = excluded.by, tier = excluded.tier, elevated_by = excluded.elevated_by, det = excluded.det,
-           del = excluded.del`,
+           v = excluded.v, ts = excluded.ts, env = excluded.env`,
       )
-      .bind(
-        vault, collection, id,
-        envelope._v, envelope._ts, envelope._iv, envelope._data,
-        envelope._by ?? null,
-        envelope._tier ?? null,
-        envelope._elevatedBy ?? null,
-        envelope._det ? JSON.stringify(envelope._det) : null,
-        envelope._del ? 1 : null,
-      )
+      .bind(vault, collection, id, envelope._v, envelope._ts, JSON.stringify(envelope))
   }
 
   async function upsert(
@@ -239,7 +244,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       const afterId = cursor ?? ''
       const res = await db
         .prepare(
-          `SELECT id, v, ts, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
+          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
            WHERE vault = ? AND collection = ? AND id > ?
            ORDER BY id LIMIT ?`,
         )

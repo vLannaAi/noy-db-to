@@ -31,7 +31,7 @@ function mockClient(): { client: DynamoDocClient } {
   return { client }
 }
 
-describe('@noy-db/to-aws-dynamo — _del round-trip', () => {
+describe('@noy-db/to-aws-dynamo — full-envelope round-trip', () => {
   it('round-trips a _del delete-marker envelope byte-identically', async () => {
     const { client } = mockClient()
     const adapter = dynamo({ table: 't', client })
@@ -46,6 +46,29 @@ describe('@noy-db/to-aws-dynamo — _del round-trip', () => {
     }
     await adapter.put('v1', 'c1', 'del1', envelope)
     const result = await adapter.get('v1', 'c1', 'del1')
+    expect(result).toEqual(envelope)
+  })
+
+  it('round-trips a maximal envelope byte-identically (every field survives, not just _del)', async () => {
+    const { client } = mockClient()
+    const adapter = dynamo({ table: 't', client })
+
+    const envelope: EncryptedEnvelope = {
+      _noydb: 1,
+      _v: 3,
+      _ts: '2026-07-09T00:00:00.000Z',
+      _iv: 'dGVzdC1pdg==',
+      _data: 'Y2lwaGVydGV4dA==',
+      _by: 'alice',
+      _tier: 2,
+      _elevatedBy: 'bob',
+      _det: { email: 'abc:def' },
+      _cek: 'wrapped-cek-b64',
+      _debug: 1,
+      _del: true,
+    }
+    await adapter.put('v1', 'c1', 'maximal1', envelope)
+    const result = await adapter.get('v1', 'c1', 'maximal1')
     expect(result).toEqual(envelope)
   })
 })

@@ -5,8 +5,7 @@ import { d1, type D1Database, type D1PreparedStatement, type D1Result } from '..
 
 function mockD1(): D1Database & { rowMap: Map<string, Row> } {
   interface Row {
-    vault: string; collection: string; id: string; v: number; ts: string; iv: string; data: string
-    by: string | null; tier: number | null; elevated_by: string | null; det: string | null; del: number | null
+    vault: string; collection: string; id: string; v: number; ts: string; env: string | null
   }
   const rowMap = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
@@ -16,10 +15,8 @@ function mockD1(): D1Database & { rowMap: Map<string, Row> } {
     if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX')) return { results: [] }
     if (normalized === 'SELECT 1') return { results: [{ '1': 1 }] }
     if (normalized.startsWith('INSERT INTO')) {
-      const [vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del] = args as [
-        string, string, string, number, string, string, string, string | null, number | null, string | null, string | null, number | null,
-      ]
-      rowMap.set(key(vault, collection, id), { vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del })
+      const [vault, collection, id, v, ts, env] = args as [string, string, string, number, string, string]
+      rowMap.set(key(vault, collection, id), { vault, collection, id, v, ts, env })
       return { results: [] }
     }
     if (normalized.startsWith('DELETE FROM')) {
@@ -46,7 +43,7 @@ function mockD1(): D1Database & { rowMap: Map<string, Row> } {
           .map(r => ({ id: r.id })),
       }
     }
-    if (normalized.startsWith('SELECT ID, V, TS, IV, DATA, BY, TIER, ELEVATED_BY, DET, DEL FROM')) {
+    if (normalized.startsWith('SELECT ID, V, TS, ENV, IV, DATA, BY, TIER, ELEVATED_BY, DET, DEL FROM')) {
       const [vault, collection, afterId, limit] = args as [string, string, string, number]
       const matched = [...rowMap.values()]
         .filter(r => r.vault === vault && r.collection === collection && r.id > afterId)
@@ -120,6 +117,25 @@ describe('@noy-db/to-cloudflare-d1', () => {
     }
     await store.put('v1', 'c1', 'del1', envelope)
     expect(await store.get('v1', 'c1', 'del1')).toEqual(envelope)
+  })
+
+  it('round-trips a maximal envelope byte-identically (every field survives, not just _del)', async () => {
+    const envelope: EncryptedEnvelope = {
+      _noydb: 1,
+      _v: 3,
+      _ts: new Date(1700003000000).toISOString(),
+      _iv: 'aaaa',
+      _data: 'ct-maximal',
+      _by: 'alice',
+      _tier: 2,
+      _elevatedBy: 'bob',
+      _det: { email: 'abc:def' },
+      _cek: 'wrapped-cek-b64',
+      _debug: 1,
+      _del: true,
+    }
+    await store.put('v1', 'c1', 'maximal1', envelope)
+    expect(await store.get('v1', 'c1', 'maximal1')).toEqual(envelope)
   })
 
   it('list returns sorted ids', async () => {
