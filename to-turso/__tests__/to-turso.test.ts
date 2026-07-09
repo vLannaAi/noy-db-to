@@ -3,16 +3,19 @@ import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
 import { turso, type LibsqlClient } from '../src/index.js'
 
+interface Row {
+  vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
+  iv?: string | null; data?: string | null
+  by?: string | null; tier?: number | null; elevated_by?: string | null; det?: string | null; del?: number | null
+}
+
 function mockLibsql(): LibsqlClient & { rowMap: Map<string, Row> } {
-  interface Row {
-    vault: string; collection: string; id: string; v: number; ts: string; env: string | null
-  }
   const rowMap = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
 
   function handle(sql: string, args: readonly unknown[]) {
     const normalized = sql.replace(/\s+/g, ' ').trim().toUpperCase()
-    if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX')) return { rows: [] }
+    if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX') || normalized.startsWith('ALTER TABLE')) return { rows: [] }
     if (normalized === 'SELECT 1') return { rows: [{ '1': 1 }] }
     if (normalized.startsWith('INSERT OR IGNORE INTO')) {
       // Create-only CAS path (expectedVersion === 0). RETURNING id is empty
@@ -24,11 +27,11 @@ function mockLibsql(): LibsqlClient & { rowMap: Map<string, Row> } {
       return { rows: [{ id }] }
     }
     if (normalized.startsWith('UPDATE')) {
-      // Update-only CAS path. args = [v, ts, env, vault, collection, id,
-      // expectedVersion]. RETURNING id is empty when no row matches (missing,
-      // or v !== expectedVersion).
-      const [v, ts, env, vault, collection, id, expectedV] = args as [
-        number, string, string, string, string, string, number,
+      // Update-only CAS path. args = [v, ts, env, iv, data, vault, collection,
+      // id, expectedVersion]. RETURNING id is empty when no row matches
+      // (missing, or v !== expectedVersion).
+      const [v, ts, env, , , vault, collection, id, expectedV] = args as [
+        number, string, string, string, string, string, string, string, number,
       ]
       const k = key(vault, collection, id)
       const existing = rowMap.get(k)
@@ -216,5 +219,40 @@ describe('@noy-db/to-turso', () => {
 
   it('ping returns true', async () => {
     expect(await store.ping!()).toBe(true)
+  })
+
+  it('reconstructs a legacy row (env absent, per-field columns populated) via dual-read fallback', async () => {
+    // Simulates a row written before the `env` migration: `env` key
+    // OMITTED entirely (not `null`), real data in the old per-column
+    // layout. Seeded directly into the mock's backing store — never went
+    // through `store.put()`.
+    client.rowMap.set('v1\x00c1\x00legacy1', {
+      vault: 'v1',
+      collection: 'c1',
+      id: 'legacy1',
+      v: 7,
+      ts: '2026-01-01T00:00:00.000Z',
+      iv: 'legacy-iv',
+      data: 'legacy-ciphertext',
+      by: 'carol',
+      tier: 3,
+      elevated_by: 'dave',
+      det: JSON.stringify({ ssn: 'abc:def' }),
+      del: 1,
+    })
+
+    const out = await store.get('v1', 'c1', 'legacy1')
+    expect(out).toEqual({
+      _noydb: 1,
+      _v: 7,
+      _ts: '2026-01-01T00:00:00.000Z',
+      _iv: 'legacy-iv',
+      _data: 'legacy-ciphertext',
+      _by: 'carol',
+      _tier: 3,
+      _elevatedBy: 'dave',
+      _det: { ssn: 'abc:def' },
+      _del: true,
+    })
   })
 })

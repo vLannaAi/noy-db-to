@@ -10,10 +10,13 @@ import { sqlite, type SqliteDatabase, type SqliteStatement } from '../src/index.
  * NOT a general SQL engine. Mirrors the shape of the real store's
  * queries so every CRUD path is exercised without a native binary.
  */
+interface Row {
+  vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
+  iv?: string | null; data?: string | null
+  by?: string | null; tier?: number | null; elevated_by?: string | null; det?: string | null; del?: number | null
+}
+
 function mockDb(): SqliteDatabase & { rows: Map<string, Row> } {
-  interface Row {
-    vault: string; collection: string; id: string; v: number; ts: string; env: string | null
-  }
   const rows = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
 
@@ -231,5 +234,43 @@ describe('@noy-db/to-sqlite', () => {
 
   it('ping returns true for a live database', async () => {
     expect(await store.ping!()).toBe(true)
+  })
+
+  it('reconstructs a legacy row (env absent, per-field columns populated) via dual-read fallback', async () => {
+    // Simulates a row written before the `env` migration: `env` key is
+    // OMITTED entirely (not `null`) — this is what `SELECT *` yields for a
+    // table that predates the `env` column, and is the exact shape that
+    // crashed the old `row.env !== null` strict check (Critical 2:
+    // `undefined !== null` is true, so `JSON.parse(undefined)` threw).
+    // Seeded directly into the mock's backing store — never went through
+    // `store.put()`.
+    db.rows.set('v1\x00c1\x00legacy1', {
+      vault: 'v1',
+      collection: 'c1',
+      id: 'legacy1',
+      v: 7,
+      ts: '2026-01-01T00:00:00.000Z',
+      iv: 'legacy-iv',
+      data: 'legacy-ciphertext',
+      by: 'carol',
+      tier: 3,
+      elevated_by: 'dave',
+      det: JSON.stringify({ ssn: 'abc:def' }),
+      del: 1,
+    })
+
+    const out = await store.get('v1', 'c1', 'legacy1')
+    expect(out).toEqual({
+      _noydb: 1,
+      _v: 7,
+      _ts: '2026-01-01T00:00:00.000Z',
+      _iv: 'legacy-iv',
+      _data: 'legacy-ciphertext',
+      _by: 'carol',
+      _tier: 3,
+      _elevatedBy: 'dave',
+      _det: { ssn: 'abc:def' },
+      _del: true,
+    })
   })
 })

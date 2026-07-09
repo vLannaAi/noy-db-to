@@ -3,16 +3,19 @@ import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
 import { d1, type D1Database, type D1PreparedStatement, type D1Result } from '../src/index.js'
 
+interface Row {
+  vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
+  iv?: string | null; data?: string | null
+  by?: string | null; tier?: number | null; elevated_by?: string | null; det?: string | null; del?: number | null
+}
+
 function mockD1(): D1Database & { rowMap: Map<string, Row> } {
-  interface Row {
-    vault: string; collection: string; id: string; v: number; ts: string; env: string | null
-  }
   const rowMap = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
 
   function dispatch(sql: string, args: readonly unknown[]) {
     const normalized = sql.replace(/\s+/g, ' ').trim().toUpperCase()
-    if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX')) return { results: [] }
+    if (normalized.startsWith('CREATE TABLE') || normalized.startsWith('CREATE INDEX') || normalized.startsWith('ALTER TABLE')) return { results: [] }
     if (normalized === 'SELECT 1') return { results: [{ '1': 1 }] }
     if (normalized.startsWith('INSERT INTO')) {
       const [vault, collection, id, v, ts, env] = args as [string, string, string, number, string, string]
@@ -188,5 +191,40 @@ describe('@noy-db/to-cloudflare-d1', () => {
 
   it('ping returns true', async () => {
     expect(await store.ping!()).toBe(true)
+  })
+
+  it('reconstructs a legacy row (env absent, per-field columns populated) via dual-read fallback', async () => {
+    // Simulates a row written before the `env` migration: `env` key
+    // OMITTED entirely (not `null`), real data in the old per-column
+    // layout. Seeded directly into the mock's backing store — never went
+    // through `store.put()`.
+    db.rowMap.set('v1\x00c1\x00legacy1', {
+      vault: 'v1',
+      collection: 'c1',
+      id: 'legacy1',
+      v: 7,
+      ts: '2026-01-01T00:00:00.000Z',
+      iv: 'legacy-iv',
+      data: 'legacy-ciphertext',
+      by: 'carol',
+      tier: 3,
+      elevated_by: 'dave',
+      det: JSON.stringify({ ssn: 'abc:def' }),
+      del: 1,
+    })
+
+    const out = await store.get('v1', 'c1', 'legacy1')
+    expect(out).toEqual({
+      _noydb: 1,
+      _v: 7,
+      _ts: '2026-01-01T00:00:00.000Z',
+      _iv: 'legacy-iv',
+      _data: 'legacy-ciphertext',
+      _by: 'carol',
+      _tier: 3,
+      _elevatedBy: 'dave',
+      _det: { ssn: 'abc:def' },
+      _del: true,
+    })
   })
 })
