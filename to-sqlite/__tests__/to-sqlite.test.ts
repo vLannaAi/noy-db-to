@@ -67,7 +67,7 @@ function mockDb(): SqliteDatabase & { rows: Map<string, Row> } {
             .map(r => ({ id: r.id }))
         }
         if (/^SELECT \* FROM .* WHERE vault = \? AND collection = \? ORDER BY id LIMIT \? OFFSET \?/i.test(normalized) ||
-            /^SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det, del FROM/i.test(normalized)) {
+            /^SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM/i.test(normalized)) {
           const [vault, collection, limit, offset] = params as [string, string, number, number]
           return [...rows.values()]
             .filter(r => r.vault === vault && r.collection === collection)

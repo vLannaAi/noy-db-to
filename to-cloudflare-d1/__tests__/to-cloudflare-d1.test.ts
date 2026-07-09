@@ -46,7 +46,7 @@ function mockD1(): D1Database & { rowMap: Map<string, Row> } {
           .map(r => ({ id: r.id })),
       }
     }
-    if (normalized.startsWith('SELECT ID, V, TS, ENV, IV, DATA, BY, TIER, ELEVATED_BY, DET, DEL FROM')) {
+    if (normalized.startsWith('SELECT ID, V, TS, ENV, IV, DATA, BY, TIER, ELEVATED_BY, DET FROM')) {
       const [vault, collection, afterId, limit] = args as [string, string, string, number]
       const matched = [...rowMap.values()]
         .filter(r => r.vault === vault && r.collection === collection && r.id > afterId)

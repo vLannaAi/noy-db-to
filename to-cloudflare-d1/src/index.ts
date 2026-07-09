@@ -257,7 +257,7 @@ export function d1(options: D1StoreOptions): NoydbStore {
       const afterId = cursor ?? ''
       const res = await db
         .prepare(
-          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
+          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
            WHERE vault = ? AND collection = ? AND id > ?
            ORDER BY id LIMIT ?`,
         )

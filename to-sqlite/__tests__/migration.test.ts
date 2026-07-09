@@ -17,7 +17,13 @@ describe('@noy-db/to-sqlite — real-engine migration (node:sqlite)', () => {
     const raw = new DatabaseSync(':memory:')
 
     // (a) OLD DDL — the exact schema this store used before the `env`
-    // migration (iv/data NOT NULL, no `env` column at all).
+    // migration (iv/data NOT NULL, no `env` column at all). This matches
+    // the genuinely published legacy schema (commit c2fd829): no `del`
+    // column either — `del` was only ever added by a later, superseded
+    // `_del`-only commit, never by the systemic `env` migration's ALTER
+    // (which adds `env` only). A real upgraded/legacy table therefore has
+    // no `del` column, which is what makes `listPage`'s explicit SELECT of
+    // `del` below break (see (e)).
     raw.exec(`
       CREATE TABLE noydb_envelopes (
         vault TEXT NOT NULL,
@@ -31,18 +37,17 @@ describe('@noy-db/to-sqlite — real-engine migration (node:sqlite)', () => {
         tier INTEGER,
         elevated_by TEXT,
         det TEXT,
-        del INTEGER,
         PRIMARY KEY (vault, collection, id)
       )
     `)
     raw
       .prepare(
-        `INSERT INTO noydb_envelopes (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det, del)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO noydb_envelopes (vault, collection, id, v, ts, iv, data, by, tier, elevated_by, det)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         'v1', 'c1', 'legacy1', 9, '2026-01-01T00:00:00.000Z',
-        'legacy-iv', 'legacy-data', 'carol', 3, 'dave', JSON.stringify({ ssn: 'a:b' }), 1,
+        'legacy-iv', 'legacy-data', 'carol', 3, 'dave', JSON.stringify({ ssn: 'a:b' }),
       )
 
     // (b) open the NEW store against the SAME (legacy) database. Pre-fix,
@@ -83,7 +88,15 @@ describe('@noy-db/to-sqlite — real-engine migration (node:sqlite)', () => {
       _tier: 3,
       _elevatedBy: 'dave',
       _det: { ssn: 'a:b' },
-      _del: true,
     })
+
+    // (e) `listPage` against the same migrated legacy table must not throw.
+    // Pre-fix, its explicit `SELECT … del` referenced a column that only
+    // ever existed on tables created after the superseded `_del`-only
+    // commit — a genuinely upgraded table (no `del` column, per (a) above)
+    // made every `listPage` call fail with `SqliteError: no such column:
+    // del`, even though `get`/`loadAll` (which use `SELECT *`) worked fine.
+    const page = await store.listPage('v1', 'c1')
+    expect(page.items.map(item => item.id)).toEqual(['legacy1', 'new1'])
   })
 })

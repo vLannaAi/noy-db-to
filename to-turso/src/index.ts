@@ -301,7 +301,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
       await ensureSchema()
       const afterId = cursor ?? ''
       const result = await client.execute({
-        sql: `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
+        sql: `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
               WHERE vault = ? AND collection = ? AND id > ?
               ORDER BY id LIMIT ?`,
         args: [vault, collection, afterId, limit + 1],

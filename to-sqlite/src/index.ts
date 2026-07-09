@@ -252,7 +252,7 @@ export function sqlite(options: SqliteStoreOptions): NoydbStore {
 
       const rows = db
         .prepare(
-          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det, del FROM ${tableName}
+          `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
            WHERE vault = ? AND collection = ?
            ORDER BY id LIMIT ? OFFSET ?`,
         )
