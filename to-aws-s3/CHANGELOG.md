@@ -1,5 +1,15 @@
 # Changelog — to-aws-s3
 
+## 0.2.0-pre.33
+
+### Feature: credentials refresh-hook option
+
+- `S3Options.credentials?: StoreCredentialSource` (`s3()`) and `S3BundleOptions.credentials?: StoreCredentialSource` (`s3Bundle()`) — an optional functional AWS credential provider threaded into each `S3Client` construction site, sharing one `mapAws` helper (`src/credentials.ts`). Exercises the hub's #479 credential-broker seam for rolling/short-lived store auth. The pre-built `client?` short-circuit is unchanged at both sites; omitting `credentials` preserves the ambient AWS SDK credential chain exactly as before.
+
+### Hub floor bump
+
+- `peerDependencies["@noy-db/hub"]`: `^0.3.0-pre.1` → `^0.3.0-pre.11` (the minimum publishing `StoreCredentials`/`StoreCredentialSource` from `@noy-db/hub/to`).
+
 ## 0.2.0-pre.9
 
 ### Feature: s3Bundle bundle-mode adapter ([#272](https://github.com/vLannaAi/noy-db/issues/272))
