@@ -48,8 +48,8 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0(@aws-sdk/client-dynamodb@3.1075.0)
       '@noy-db/hub':
-        specifier: 0.3.0-pre.7
-        version: 0.3.0-pre.7
+        specifier: 0.3.0-pre.11
+        version: 0.3.0-pre.11
 
   to-aws-s3:
     devDependencies:
@@ -714,9 +714,22 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@noy-db/attestation@0.3.0-pre.11':
+    resolution: {integrity: sha512-dn60KalI/pJ3uWE6eU4YTBRd0iAOw3TukwT9Qzb0l2J80P7Hx+fP/tzwINNnpgHCvYrOeS8uU6f+0vbqwPZdpQ==}
+    engines: {node: '>=22.0.0'}
+
   '@noy-db/attestation@0.3.0-pre.7':
     resolution: {integrity: sha512-f5l+FS1iKe8bA+pOy0G2DLCTx0QE8LT4fobTQtROxugiSzS5nj7O8L8l/kxZ92rG1Q6hLCc8EmCra/6NKWDqqg==}
     engines: {node: '>=22.0.0'}
+
+  '@noy-db/hub@0.3.0-pre.11':
+    resolution: {integrity: sha512-dAVRY04KAgG6c16IMJj9WHQfMpnqEkdTSEo6sUU3anc4DJIGNyFWHImx3qsZzcuFd8fgBDvUf0gfJ9l6wg7YIw==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      zod-to-json-schema: ^3.25.0
+    peerDependenciesMeta:
+      zod-to-json-schema:
+        optional: true
 
   '@noy-db/hub@0.3.0-pre.7':
     resolution: {integrity: sha512-m0s5LBRmTyNfnemq7gaGjgv+LQURDYgCIVQlV8Ic8I9lvUd3RD5yx9Vd4Th4RRhcsoZ6W9XkNwiqFCeCeV3Epw==}
@@ -2185,7 +2198,13 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@noy-db/attestation@0.3.0-pre.11': {}
+
   '@noy-db/attestation@0.3.0-pre.7': {}
+
+  '@noy-db/hub@0.3.0-pre.11':
+    dependencies:
+      '@noy-db/attestation': 0.3.0-pre.11
 
   '@noy-db/hub@0.3.0-pre.7':
     dependencies:

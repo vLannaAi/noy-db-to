@@ -37,7 +37,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentials, StoreCredentialSource } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -58,6 +58,44 @@ export interface DynamoOptions {
   endpoint?: string
   /** DynamoDB document client instance (for advanced configuration). */
   client?: DynamoDocClient
+  /**
+   * Refresh hook (the #479 credential broker) — called by the SDK's own
+   * credential provider whenever it has no credentials or they're near
+   * expiry. Ignored when `client` is supplied (a pre-built client always
+   * wins).
+   */
+  credentials?: StoreCredentialSource
+}
+
+/**
+ * Minimal AWS credential identity shape (mirrors `@aws-sdk/types`'
+ * `AwsCredentialIdentity`; not imported from there to avoid a new
+ * dependency — the SDK classes above are only ever dynamically imported).
+ */
+export interface AwsCredentialIdentityLike {
+  accessKeyId: string
+  secretAccessKey: string
+  sessionToken?: string
+  expiration?: Date
+}
+
+/**
+ * Maps a broker-issued `StoreCredentials` to the shape the AWS SDK v3
+ * credential provider expects. Conditional-spread for both optional fields:
+ * `exactOptionalPropertyTypes` forbids `expiration: undefined`, and the SDK's
+ * credential memoizer treats an *absent* `expiration` as "unknown, never
+ * re-invoke" vs. a present `Date` as "re-invoke at the rolling window".
+ */
+export function mapAws(creds: StoreCredentials): AwsCredentialIdentityLike {
+  if (creds.kind !== 'aws') {
+    throw new Error(`to-aws-dynamo: credentials hook returned kind '${creds.kind}', expected 'aws'`)
+  }
+  return {
+    accessKeyId: creds.accessKeyId,
+    secretAccessKey: creds.secretAccessKey,
+    ...(creds.sessionToken ? { sessionToken: creds.sessionToken } : {}),
+    ...(creds.expiresAt ? { expiration: new Date(creds.expiresAt) } : {}),
+  }
 }
 
 /**
@@ -117,6 +155,7 @@ export function dynamo(options: DynamoOptions): NoydbStore {
         const config: Record<string, unknown> = {}
         if (options.region) config['region'] = options.region
         if (options.endpoint) config['endpoint'] = options.endpoint
+        if (options.credentials) config['credentials'] = async () => mapAws(await options.credentials!())
 
         const ddbClient = new DynamoDBClient(config)
         return DynamoDBDocumentClient.from(ddbClient)
