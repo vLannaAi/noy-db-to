@@ -30,7 +30,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 import {
   S3Client,
@@ -41,6 +41,7 @@ import {
   ListObjectsV2Command,
   HeadBucketCommand,
 } from '@aws-sdk/client-s3'
+import { mapAws } from './credentials.js'
 
 /**
  * Options for `s3()`.
@@ -71,6 +72,13 @@ export interface S3Options {
   client?: S3Client
   /** Clock uncertainty bound for serverWriteTime (ms). Default: 5000. */
   clockUncertaintyMs?: number
+  /**
+   * Refresh hook (the #479 credential broker) — called by the SDK's own
+   * credential provider whenever it has no credentials or they're near
+   * expiry. Ignored when `client` is supplied (a pre-built client always
+   * wins).
+   */
+  credentials?: StoreCredentialSource
 }
 
 /**
@@ -90,6 +98,7 @@ export function s3(options: S3Options): NoydbStore {
 
   const client = options.client ?? new S3Client({
     ...(options.region ? { region: options.region } : {}),
+    ...(options.credentials ? { credentials: async () => mapAws(await options.credentials!()) } : {}),
   })
 
   function objectKey(vault: string, collection: string, id: string): string {
