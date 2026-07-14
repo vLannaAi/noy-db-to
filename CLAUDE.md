@@ -15,7 +15,7 @@ adapter is a thin, ciphertext-only `NoydbStore` (or `NoydbPodStore`) implementat
 
 Each store binds **only** to the published `@noy-db/hub/to` subpath (the `NoydbStore` contract +
 envelope/snapshot/op types + store errors) — never hub internals, never the main barrel. `@noy-db/hub`
-is a **peerDependency at a range** (`^0.2.x`), never a `workspace:*` link. A noy-db release only forces
+is a **peerDependency at a range** (`^0.3.x`), never a `workspace:*` link. A noy-db release only forces
 a rebuild here when the store contract changes. `scripts/check-architecture.mjs` enforces this
 mechanically (hub-peer-range, to-only, no-crypto-deps).
 
