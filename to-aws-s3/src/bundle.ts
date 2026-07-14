@@ -16,7 +16,7 @@
  *
  * @packageDocumentation
  */
-import type { NoydbPodStore } from '@noy-db/hub/to'
+import type { NoydbPodStore, StoreCredentialSource } from '@noy-db/hub/to'
 import { PodVersionConflictError } from '@noy-db/hub/to'
 import {
   S3Client,
@@ -26,6 +26,7 @@ import {
   ListObjectsV2Command,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3'
+import { mapAws } from './credentials.js'
 
 export interface S3BundleOptions {
   /** S3 bucket name. */
@@ -36,6 +37,13 @@ export interface S3BundleOptions {
   region?: string
   /** Pre-built S3Client. If provided, `region` is ignored. */
   client?: S3Client
+  /**
+   * Refresh hook (the #479 credential broker) — called by the SDK's own
+   * credential provider whenever it has no credentials or they're near
+   * expiry. Ignored when `client` is supplied (a pre-built client always
+   * wins).
+   */
+  credentials?: StoreCredentialSource
 }
 
 const SUFFIX = '.noydb'
@@ -48,6 +56,7 @@ export function s3Bundle(options: S3BundleOptions): NoydbPodStore {
   const { bucket, prefix = '' } = options
   const client = options.client ?? new S3Client({
     ...(options.region ? { region: options.region } : {}),
+    ...(options.credentials ? { credentials: async () => mapAws(await options.credentials!()) } : {}),
   })
 
   const listPrefix = prefix ? `${prefix}/` : ''

@@ -57,8 +57,8 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0
       '@noy-db/hub':
-        specifier: 0.3.0-pre.7
-        version: 0.3.0-pre.7
+        specifier: 0.3.0-pre.11
+        version: 0.3.0-pre.11
 
   to-browser-local:
     devDependencies:
@@ -87,8 +87,8 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0
       '@noy-db/hub':
-        specifier: 0.3.0-pre.7
-        version: 0.3.0-pre.7
+        specifier: 0.3.0-pre.11
+        version: 0.3.0-pre.11
       '@noy-db/to-aws-s3':
         specifier: workspace:*
         version: link:../to-aws-s3
