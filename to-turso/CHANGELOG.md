@@ -1,5 +1,11 @@
 # @noy-db/to-turso
 
+## 0.2.1-pre.1
+
+### Feature: credentials refresh-hook option ([#11](https://github.com/vLannaAi/noy-db-to/issues/11))
+
+- `TursoStoreOptions.credentials?: StoreCredentialSource` + `clientFactory?: (authToken) => LibsqlClient` — rolling short-lived auth via the hub's #479 credential-broker seam (`kind: 'token'`). libSQL clients take a static `authToken` at construction, so the store owns the refresh: it rebuilds the client via `clientFactory` when the token nears/passes `expiresAt`. A pre-built `client` always wins; `client` is now optional (provide it, or `clientFactory` + `credentials`).
+
 ## 0.2.0
 
 ### Hub floor normalized to the first stable
