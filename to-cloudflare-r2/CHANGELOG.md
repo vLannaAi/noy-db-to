@@ -1,5 +1,11 @@
 # @noy-db/to-cloudflare-r2
 
+## 0.2.1-pre.1
+
+### Feature: credentials refresh-hook option ([#10](https://github.com/vLannaAi/noy-db-to/issues/10))
+
+- `R2Options.credentials?: StoreCredentialSource` — rolling short-lived R2 auth via the hub's #479 credential-broker seam. R2 keys are S3-compatible, so the provider yields `kind: 'aws'` credentials, mapped through `to-aws-s3`'s shared `mapAws` and re-invoked by the SDK near `expiresAt`. Precedence: pre-built `client` > `credentials` > static `accessKeyId`/`secretAccessKey`; omitting `credentials` preserves the static-keys path exactly.
+
 ## 0.2.0
 
 ### Hub floor normalized to the first stable
