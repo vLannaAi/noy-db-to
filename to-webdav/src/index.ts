@@ -29,7 +29,10 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource } from '@noy-db/hub/to'
+
+/** Refresh the cached token this many ms before its `expiresAt`. */
+const TOKEN_REFRESH_SKEW_MS = 30_000
 
 export interface WebDAVStoreOptions {
   /** Base URL of the WebDAV endpoint (with trailing slash optional). */
@@ -38,6 +41,15 @@ export interface WebDAVStoreOptions {
   readonly prefix?: string
   /** Default headers sent with every request (e.g. Authorization). */
   readonly headers?: Record<string, string>
+  /**
+   * Rolling short-lived credentials source (the hub's #479 credential-broker
+   * seam). The provider must yield `kind: 'token'` credentials; the token is
+   * injected on every request as `Authorization: Bearer <token>`, overriding
+   * any static `headers` Authorization. The store caches the token and
+   * re-invokes the source shortly before `expiresAt` (no `expiresAt` →
+   * cached for the store's lifetime).
+   */
+  readonly credentials?: StoreCredentialSource
   /** Custom fetch — defaults to `globalThis.fetch`. */
   readonly fetch?: typeof fetch
   /**
@@ -75,6 +87,29 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
 
   const baseUrl = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase
 
+  // #479 refresh hook — token cache. The store owns refresh (fetch has no
+  // provider contract like the AWS SDK): re-invoke the source when the
+  // cached token is missing or within TOKEN_REFRESH_SKEW_MS of expiry.
+  let cachedToken: { token: string; expiresAtMs: number | null } | null = null
+
+  async function requestHeaders(): Promise<Record<string, string>> {
+    if (!options.credentials) return baseHeaders
+    if (
+      !cachedToken ||
+      (cachedToken.expiresAtMs !== null && Date.now() >= cachedToken.expiresAtMs - TOKEN_REFRESH_SKEW_MS)
+    ) {
+      const creds = await options.credentials()
+      if (creds.kind !== 'token') {
+        throw new Error(`@noy-db/to-webdav: credentials hook returned kind '${creds.kind}', expected 'token'`)
+      }
+      cachedToken = {
+        token: creds.token,
+        expiresAtMs: creds.expiresAt ? Date.parse(creds.expiresAt) : null,
+      }
+    }
+    return { ...baseHeaders, Authorization: `Bearer ${cachedToken.token}` }
+  }
+
   function urlFor(vault: string, collection: string, id: string): string {
     const segments = [prefix, vault, collection, `${id}.json`]
       .filter(Boolean)
@@ -92,7 +127,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
     let url = baseUrl
     for (const part of parts) {
       url += `/${encodeURIComponent(part)}`
-      const res = await fetchImpl(url + '/', { method: 'MKCOL', headers: baseHeaders })
+      const res = await fetchImpl(url + '/', { method: 'MKCOL', headers: await requestHeaders() })
       // 201 Created, 405 Method Not Allowed (exists), and 409 Conflict are all
       // acceptable — we only fail on transport-level errors.
       if (res.status >= 500) {
@@ -105,7 +140,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
     return fetchImpl(urlFor(vault, collection, id), {
       method: 'PUT',
       headers: {
-        ...baseHeaders,
+        ...(await requestHeaders()),
         'Content-Type': 'application/json',
       },
       body,
@@ -121,7 +156,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
     const res = await fetchImpl(url, {
       method: 'PROPFIND',
       headers: {
-        ...baseHeaders,
+        ...(await requestHeaders()),
         Depth: '1',
         'Content-Type': 'application/xml',
       },
@@ -158,7 +193,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
     async get(vault, collection, id) {
       const res = await fetchImpl(urlFor(vault, collection, id), {
         method: 'GET',
-        headers: baseHeaders,
+        headers: await requestHeaders(),
       })
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`WebDAV GET failed: ${res.status}`)
@@ -186,7 +221,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
     async delete(vault, collection, id) {
       const res = await fetchImpl(urlFor(vault, collection, id), {
         method: 'DELETE',
-        headers: baseHeaders,
+        headers: await requestHeaders(),
       })
       if (res.status !== 204 && res.status !== 404 && !res.ok) {
         throw new Error(`WebDAV DELETE failed: ${res.status}`)
@@ -201,7 +236,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
       const rootUrl = `${baseUrl}/${[prefix, vault].filter(Boolean).map(encodeURIComponent).join('/')}/`
       const res = await fetchImpl(rootUrl, {
         method: 'PROPFIND',
-        headers: { ...baseHeaders, Depth: '1', 'Content-Type': 'application/xml' },
+        headers: { ...(await requestHeaders()), Depth: '1', 'Content-Type': 'application/xml' },
         body: PROPFIND_BODY,
       })
       if (res.status === 404) return {}
@@ -245,7 +280,7 @@ export function webdav(options: WebDAVStoreOptions): NoydbStore {
       try {
         const res = await fetchImpl(baseUrl + '/', {
           method: 'PROPFIND',
-          headers: { ...baseHeaders, Depth: '0' },
+          headers: { ...(await requestHeaders()), Depth: '0' },
         })
         return res.ok || res.status === 207
       } catch {

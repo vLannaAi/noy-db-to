@@ -1,5 +1,11 @@
 # @noy-db/to-webdav
 
+## 0.2.1-pre.1
+
+### Feature: credentials refresh-hook option ([#11](https://github.com/vLannaAi/noy-db-to/issues/11))
+
+- `WebDAVStoreOptions.credentials?: StoreCredentialSource` — rolling short-lived auth via the hub's #479 credential-broker seam (`kind: 'token'`). The token is injected on every request as `Authorization: Bearer <token>` (overriding any static `headers` Authorization); the store caches it and re-invokes the source shortly before `expiresAt`. Omitting `credentials` preserves the static-headers path exactly.
+
 ## 0.2.0
 
 ### Hub floor normalized to the first stable

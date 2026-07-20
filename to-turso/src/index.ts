@@ -22,8 +22,11 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult, StoreCredentialSource } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
+
+/** Rebuild the client this many ms before the broker token's `expiresAt`. */
+const TOKEN_REFRESH_SKEW_MS = 30_000
 
 /**
  * Duck-typed subset of `@libsql/client` — matches the common async
@@ -39,7 +42,26 @@ export interface LibsqlResultSet {
 }
 
 export interface TursoStoreOptions {
-  readonly client: LibsqlClient
+  /**
+   * Pre-built libSQL client. Always wins: when supplied, `clientFactory`
+   * and `credentials` are ignored.
+   */
+  readonly client?: LibsqlClient
+  /**
+   * Client builder for the rolling-credentials path — typically
+   * `authToken => createClient({ url, authToken })`. Required together
+   * with `credentials` when no `client` is supplied.
+   */
+  readonly clientFactory?: (authToken: string) => LibsqlClient
+  /**
+   * Rolling short-lived credentials source (the hub's #479 credential-broker
+   * seam). The provider must yield `kind: 'token'` credentials. libSQL
+   * clients take a static `authToken` at construction, so the store owns the
+   * refresh: it rebuilds the client via `clientFactory` whenever the token
+   * is missing or near/past `expiresAt` (no `expiresAt` → the first client
+   * is kept for the store's lifetime).
+   */
+  readonly credentials?: StoreCredentialSource
   readonly tableName?: string
   readonly autoMigrate?: boolean
   /** Clock uncertainty bound for serverWriteTime (ms). Default: 1000. */
@@ -47,14 +69,41 @@ export interface TursoStoreOptions {
 }
 
 export function turso(options: TursoStoreOptions): NoydbStore {
-  const { client, tableName = 'noydb_envelopes', autoMigrate = true } = options
+  const { client: staticClient, tableName = 'noydb_envelopes', autoMigrate = true } = options
   const clockUncertaintyMs = options.clockUncertaintyMs ?? 1_000
   let schemaReady: Promise<void> | null = null
+
+  if (!staticClient && !(options.clientFactory && options.credentials)) {
+    throw new Error('@noy-db/to-turso: provide either `client`, or `clientFactory` together with `credentials`.')
+  }
+
+  // #479 refresh hook — cached factory-built client. Rebuilt (with a fresh
+  // broker token) when the token is missing or within the skew of expiry.
+  let cached: { client: LibsqlClient; expiresAtMs: number | null } | null = null
+
+  async function getClient(): Promise<LibsqlClient> {
+    if (staticClient) return staticClient
+    if (
+      !cached ||
+      (cached.expiresAtMs !== null && Date.now() >= cached.expiresAtMs - TOKEN_REFRESH_SKEW_MS)
+    ) {
+      const creds = await options.credentials!()
+      if (creds.kind !== 'token') {
+        throw new Error(`@noy-db/to-turso: credentials hook returned kind '${creds.kind}', expected 'token'`)
+      }
+      cached = {
+        client: options.clientFactory!(creds.token),
+        expiresAtMs: creds.expiresAt ? Date.parse(creds.expiresAt) : null,
+      }
+    }
+    return cached.client
+  }
 
   async function ensureSchema(): Promise<void> {
     if (!autoMigrate) return
     if (!schemaReady) {
       schemaReady = (async () => {
+        const client = await getClient()
         // New writes only populate vault/collection/id/v/ts/env — `env` is
         // `JSON.stringify(envelope)`, the ENTIRE envelope, so no field (including
         // ones this store doesn't know about, e.g. `_cek`/`_debug`) is ever
@@ -137,6 +186,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
     expectedVersion?: number,
   ): Promise<void> {
     await ensureSchema()
+    const client = await getClient()
 
     const envelopeArgs = [
       vault, collection, id, envelope._v, envelope._ts, JSON.stringify(envelope), envelope._iv, envelope._data,
@@ -205,6 +255,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
     },
 
     async getStoreTime() {
+      const client = await getClient()
       const result = await client.execute("SELECT unixepoch('now','subsec') AS t")
       const seconds = parseFloat(result.rows[0]!.t as string)
       const ms = Math.round(seconds * 1_000)
@@ -213,6 +264,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async get(vault, collection, id) {
       await ensureSchema()
+      const client = await getClient()
       const result = await client.execute({
         sql: `SELECT * FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?`,
         args: [vault, collection, id],
@@ -227,6 +279,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async delete(vault, collection, id) {
       await ensureSchema()
+      const client = await getClient()
       await client.execute({
         sql: `DELETE FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?`,
         args: [vault, collection, id],
@@ -235,6 +288,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async list(vault, collection) {
       await ensureSchema()
+      const client = await getClient()
       const result = await client.execute({
         sql: `SELECT id FROM ${tableName} WHERE vault = ? AND collection = ? ORDER BY id`,
         args: [vault, collection],
@@ -244,6 +298,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async loadAll(vault) {
       await ensureSchema()
+      const client = await getClient()
       const result = await client.execute({
         sql: `SELECT * FROM ${tableName} WHERE vault = ?`,
         args: [vault],
@@ -260,6 +315,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async saveAll(vault, data) {
       await ensureSchema()
+      const client = await getClient()
       if (client.batch) {
         const statements: { sql: string; args?: readonly unknown[] }[] = [
           { sql: `DELETE FROM ${tableName} WHERE vault = ?`, args: [vault] },
@@ -290,6 +346,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async ping() {
       try {
+        const client = await getClient()
         await client.execute('SELECT 1')
         return true
       } catch {
@@ -299,6 +356,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async listPage(vault, collection, cursor, limit = 100) {
       await ensureSchema()
+      const client = await getClient()
       const afterId = cursor ?? ''
       const result = await client.execute({
         sql: `SELECT id, v, ts, env, iv, data, by, tier, elevated_by, det FROM ${tableName}
@@ -318,6 +376,7 @@ export function turso(options: TursoStoreOptions): NoydbStore {
 
     async tx(ops: readonly TxOp[]) {
       await ensureSchema()
+      const client = await getClient()
       if (client.batch) {
         const statements: { sql: string; args?: readonly unknown[] }[] = []
         for (const op of ops) {
