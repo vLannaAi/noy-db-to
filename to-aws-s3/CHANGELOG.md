@@ -1,5 +1,11 @@
 # Changelog — to-aws-s3
 
+## 0.2.1-pre.1
+
+### Public surface: `mapAws` re-exported from the barrel
+
+- `mapAws` + `AwsCredentialIdentityLike` are now exported from the package root so S3-compatible sibling stores (`to-cloudflare-r2`) share one credential mapper instead of duplicating it. No behavior change.
+
 ## 0.2.0
 
 ### Hub floor normalized to the first stable

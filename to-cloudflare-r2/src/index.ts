@@ -38,10 +38,10 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/to'
+import type { NoydbStore, StoreCredentialSource } from '@noy-db/hub/to'
 import type { S3Client, S3ClientConfig } from '@aws-sdk/client-s3'
 import { S3Client as RealS3Client } from '@aws-sdk/client-s3'
-import { s3 } from '@noy-db/to-aws-s3'
+import { s3, mapAws } from '@noy-db/to-aws-s3'
 
 export interface R2Options {
   /** Cloudflare account id (from the R2 dashboard). Required unless `client` is supplied. */
@@ -51,12 +51,21 @@ export interface R2Options {
   /** Key prefix within the bucket. Default `''`. */
   readonly prefix?: string
   /**
-   * R2 access key id. Required unless `client` is supplied. Prefer
-   * short-lived credentials via the account's API token flow.
+   * R2 access key id. Required unless `client` or `credentials` is
+   * supplied. Prefer short-lived credentials via the account's API
+   * token flow.
    */
   readonly accessKeyId?: string
-  /** R2 secret access key. Required unless `client` is supplied. */
+  /** R2 secret access key. Required unless `client` or `credentials` is supplied. */
   readonly secretAccessKey?: string
+  /**
+   * Rolling short-lived credentials source (the hub's #479 credential-broker
+   * seam). R2 keys are S3-compatible, so the provider must yield
+   * `kind: 'aws'` credentials; the SDK re-invokes it near `expiresAt`.
+   * Takes precedence over the static `accessKeyId`/`secretAccessKey` pair;
+   * ignored when `client` is supplied (a pre-built client always wins).
+   */
+  readonly credentials?: StoreCredentialSource
   /**
    * Pre-built S3Client — overrides every other authentication option.
    * Use this when you already share an R2-pointed client across adapters
@@ -107,18 +116,20 @@ export function r2(options: R2Options): NoydbStore {
   if (!options.accountId) {
     throw new Error('@noy-db/to-cloudflare-r2: provide either `client` or `accountId`.')
   }
-  if (!options.accessKeyId || !options.secretAccessKey) {
-    throw new Error('@noy-db/to-cloudflare-r2: `accessKeyId` and `secretAccessKey` are required (unless `client` is supplied).')
+  if (!options.credentials && (!options.accessKeyId || !options.secretAccessKey)) {
+    throw new Error('@noy-db/to-cloudflare-r2: `accessKeyId` and `secretAccessKey` (or a `credentials` source) are required (unless `client` is supplied).')
   }
 
   const endpoint = options.endpoint ?? r2EndpointFor(options.accountId)
   const config: S3ClientConfig = {
     region: R2_REGION,
     endpoint,
-    credentials: {
-      accessKeyId: options.accessKeyId,
-      secretAccessKey: options.secretAccessKey,
-    },
+    credentials: options.credentials
+      ? async () => mapAws(await options.credentials!())
+      : {
+          accessKeyId: options.accessKeyId!,
+          secretAccessKey: options.secretAccessKey!,
+        },
     forcePathStyle: true,
   }
   const built = new RealS3Client(config)

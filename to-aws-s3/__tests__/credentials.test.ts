@@ -52,6 +52,15 @@ describe('to-aws-s3 — credentials refresh hook', () => {
     })
   })
 
+  describe('package barrel', () => {
+    it('re-exports mapAws so sibling S3-compatible stores (to-cloudflare-r2) can share it', async () => {
+      const barrel = await import('../src/index.js')
+      expect(typeof barrel.mapAws).toBe('function')
+      const id = barrel.mapAws({ kind: 'aws', accessKeyId: 'a', secretAccessKey: 's' })
+      expect(id.accessKeyId).toBe('a')
+    })
+  })
+
   describe('s3() client construction wiring', () => {
     beforeEach(() => {
       vi.resetModules()
