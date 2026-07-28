@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
-import { d1, type D1Database, type D1PreparedStatement, type D1Result } from '../src/index.js'
+import { toCloudflareD1, type D1Database, type D1PreparedStatement, type D1Result } from '../src/index.js'
 
 interface Row {
   vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
@@ -92,10 +92,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-cloudflare-d1', () => {
   let db: ReturnType<typeof mockD1>
-  let store: ReturnType<typeof d1>
+  let store: ReturnType<typeof toCloudflareD1>
   beforeEach(() => {
     db = mockD1()
-    store = d1({ db })
+    store = toCloudflareD1({ db })
   })
 
   it('name is "cloudflare-d1"', () => expect(store.name).toBe('cloudflare-d1'))

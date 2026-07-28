@@ -68,7 +68,7 @@ export interface TursoStoreOptions {
   readonly clockUncertaintyMs?: number
 }
 
-export function turso(options: TursoStoreOptions): NoydbStore {
+export function toTurso(options: TursoStoreOptions): NoydbStore {
   const { client: staticClient, tableName = 'noydb_envelopes', autoMigrate = true } = options
   const clockUncertaintyMs = options.clockUncertaintyMs ?? 1_000
   let schemaReady: Promise<void> | null = null

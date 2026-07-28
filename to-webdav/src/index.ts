@@ -75,7 +75,7 @@ export interface WebDAVStoreOptions {
   readonly eagerMkcol?: boolean
 }
 
-export function webdav(options: WebDAVStoreOptions): NoydbStore {
+export function toWebdav(options: WebDAVStoreOptions): NoydbStore {
   const {
     baseUrl: rawBase,
     prefix = '',

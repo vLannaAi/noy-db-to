@@ -174,7 +174,7 @@ export interface DriveStoreOptions {
 const APP_DATA_FOLDER = 'appDataFolder'
 const DEFAULT_MIME = 'application/octet-stream'
 
-export function drive(options: DriveStoreOptions): NoydbPodStore {
+export function toDrive(options: DriveStoreOptions): NoydbPodStore {
   const parentId = options.parentId ?? APP_DATA_FOLDER
   const handles = options.handles ?? memoryHandleStore()
   const suffix = options.suffix ?? '.noydb'

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dynamo, type DynamoDocClient } from '../src/index.js'
+import { toAwsDynamo, type DynamoDocClient } from '../src/index.js'
 
 /**
  * Mock DynamoDB document client. Captures every command sent and returns
@@ -28,13 +28,13 @@ function mockClient(handlers: Record<string, (input: unknown) => unknown>): {
 describe('@noy-db/store-aws-dynamo — listPage', () => {
   it('1. has a name field for diagnostic logging', () => {
     const { client } = mockClient({})
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     expect(adapter.name).toBe('dynamo')
   })
 
   it('2. exposes listPage as an optional method', () => {
     const { client } = mockClient({})
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     expect(typeof adapter.listPage).toBe('function')
   })
 
@@ -42,7 +42,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
     const { client, sent } = mockClient({
       QueryCommand: () => ({ Items: [], LastEvaluatedKey: undefined }),
     })
-    const adapter = dynamo({ table: 'noydb-prod', client })
+    const adapter = toAwsDynamo({ table: 'noydb-prod', client })
     await adapter.listPage!('C1', 'invoices', undefined, 25)
 
     expect(sent).toHaveLength(1)
@@ -57,7 +57,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
     const { client, sent } = mockClient({
       QueryCommand: () => ({ Items: [], LastEvaluatedKey: undefined }),
     })
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     await adapter.listPage!('C1', 'invoices', cursor, 10)
 
     const input = sent[0]!.input as { ExclusiveStartKey?: Record<string, unknown> }
@@ -74,7 +74,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
         LastEvaluatedKey: undefined,
       }),
     })
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
 
     expect(page.items).toHaveLength(2)
@@ -90,7 +90,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
     const { client } = mockClient({
       QueryCommand: () => ({ Items: [], LastEvaluatedKey: lastKey }),
     })
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
 
     expect(page.nextCursor).not.toBeNull()
@@ -102,7 +102,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
     const { client } = mockClient({
       QueryCommand: () => ({ Items: [], LastEvaluatedKey: undefined }),
     })
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
     expect(page.nextCursor).toBeNull()
   })
@@ -114,7 +114,7 @@ describe('@noy-db/store-aws-dynamo — listPage', () => {
         LastEvaluatedKey: { pk: 'C1', sk: 'invoices#inv-099' },
       }),
     })
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
 
     const page1 = await adapter.listPage!('C1', 'invoices')
     expect(page1.nextCursor).not.toBeNull()

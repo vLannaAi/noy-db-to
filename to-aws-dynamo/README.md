@@ -16,14 +16,14 @@ pnpm add @noy-db/hub @noy-db/to-aws-dynamo @aws-sdk/client-dynamodb @aws-sdk/lib
 
 ```ts
 import { createNoydb } from '@noy-db/hub'
-import { dynamo } from '@noy-db/to-aws-dynamo'
+import { toAwsDynamo } from '@noy-db/to-aws-dynamo'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'ap-southeast-1' }))
 
 const db = await createNoydb({
-  adapter: dynamo({ client, tableName: 'noydb-prod' }),
+  adapter: toAwsDynamo({ client, tableName: 'noydb-prod' }),
   userId: 'alice',
   passphrase: process.env.NOYDB_PASSPHRASE!,
 })

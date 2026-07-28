@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
-import { turso, type LibsqlClient } from '../src/index.js'
+import { toTurso, type LibsqlClient } from '../src/index.js'
 
 interface Row {
   vault: string; collection: string; id: string; v: number; ts: string; env?: string | null
@@ -108,10 +108,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-turso', () => {
   let client: ReturnType<typeof mockLibsql>
-  let store: ReturnType<typeof turso>
+  let store: ReturnType<typeof toTurso>
   beforeEach(() => {
     client = mockLibsql()
-    store = turso({ client })
+    store = toTurso({ client })
   })
 
   it('name is "turso"', () => expect(store.name).toBe('turso'))

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { StoreCredentials } from '@noy-db/hub/to'
-import { webdav } from '../src/index.js'
+import { toWebdav } from '../src/index.js'
 
 // #479 credential-broker adoption for WebDAV (noy-db-to#11) — `credentials?:
 // StoreCredentialSource` yielding `kind: 'token'`, injected per-request as
@@ -41,7 +41,7 @@ describe('to-webdav — credentials refresh hook', () => {
   it('injects Authorization: Bearer <token> on requests when credentials is supplied', async () => {
     const { fetch, calls } = fetchRecorder()
     const { source } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
-    const store = webdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
+    const store = toWebdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
 
     await store.get('v', 'c', 'id1')
 
@@ -52,7 +52,7 @@ describe('to-webdav — credentials refresh hook', () => {
   it('caches the token across operations while unexpired (source invoked once)', async () => {
     const { fetch } = fetchRecorder()
     const { source, invocations } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
-    const store = webdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
+    const store = toWebdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
 
     await store.get('v', 'c', 'a')
     await store.get('v', 'c', 'b')
@@ -67,7 +67,7 @@ describe('to-webdav — credentials refresh hook', () => {
       { token: 'tok-old', expiresAt: PAST },
       { token: 'tok-new', expiresAt: FUTURE },
     ])
-    const store = webdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
+    const store = toWebdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
 
     await store.get('v', 'c', 'a') // gets tok-old (already expired at issue time)
     await store.get('v', 'c', 'b') // must refresh → tok-new
@@ -79,7 +79,7 @@ describe('to-webdav — credentials refresh hook', () => {
   it('treats a token without expiresAt as non-expiring (source invoked once)', async () => {
     const { fetch } = fetchRecorder()
     const { source, invocations } = tokenSource([{ token: 'tok-forever' }])
-    const store = webdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
+    const store = toWebdav({ baseUrl: 'https://dav.example.com', fetch, credentials: source })
 
     await store.get('v', 'c', 'a')
     await store.get('v', 'c', 'b')
@@ -89,7 +89,7 @@ describe('to-webdav — credentials refresh hook', () => {
 
   it('rejects a non-token credential kind with a clear message', async () => {
     const { fetch } = fetchRecorder()
-    const store = webdav({
+    const store = toWebdav({
       baseUrl: 'https://dav.example.com',
       fetch,
       credentials: async () => ({ kind: 'aws', accessKeyId: 'a', secretAccessKey: 's' }),
@@ -101,7 +101,7 @@ describe('to-webdav — credentials refresh hook', () => {
   it('credentials-derived Authorization overrides a static headers Authorization', async () => {
     const { fetch, calls } = fetchRecorder()
     const { source } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
-    const store = webdav({
+    const store = toWebdav({
       baseUrl: 'https://dav.example.com',
       fetch,
       headers: { Authorization: 'Basic c3RhdGlj', 'X-Custom': 'kept' },
@@ -116,7 +116,7 @@ describe('to-webdav — credentials refresh hook', () => {
 
   it('leaves headers untouched when credentials is not supplied', async () => {
     const { fetch, calls } = fetchRecorder()
-    const store = webdav({
+    const store = toWebdav({
       baseUrl: 'https://dav.example.com',
       fetch,
       headers: { Authorization: 'Basic c3RhdGlj' },

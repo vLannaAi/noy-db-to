@@ -76,7 +76,7 @@ function decode(bytes: Uint8Array | Buffer): string {
   return new TextDecoder().decode(bytes)
 }
 
-export function smb(options: SmbStoreOptions): NoydbStore {
+export function toSmb(options: SmbStoreOptions): NoydbStore {
   const { smb: client, remotePath = 'noydb', name = 'smb' } = options
   const root = remotePath.replace(/^\/+|\/+$/g, '')
 

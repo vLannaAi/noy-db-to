@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { supabase, type PostgresClient } from '../src/index.js'
+import { toSupabase, type PostgresClient } from '../src/index.js'
 
 /** Reuse the minimal mock from the to-postgres test shape. */
 function mockClient(): PostgresClient & { rowMap: Map<string, Row> } {
@@ -45,18 +45,18 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-supabase', () => {
   it('name is "supabase"', () => {
-    const store = supabase({ client: mockClient() })
+    const store = toSupabase({ client: mockClient() })
     expect(store.name).toBe('supabase')
   })
 
   it('delegates put + get to the postgres layer', async () => {
-    const store = supabase({ client: mockClient() })
+    const store = toSupabase({ client: mockClient() })
     await store.put('v1', 'c1', 'r1', env(1))
     expect(await store.get('v1', 'c1', 'r1')).toEqual(env(1))
   })
 
   it('exposes every postgres extension (tx, listPage, ping)', () => {
-    const store = supabase({ client: mockClient() })
+    const store = toSupabase({ client: mockClient() })
     expect(typeof store.tx).toBe('function')
     expect(typeof store.listPage).toBe('function')
     expect(typeof store.ping).toBe('function')
@@ -64,7 +64,7 @@ describe('@noy-db/to-supabase', () => {
 
   it('honours a custom tableName option', async () => {
     const c = mockClient()
-    const store = supabase({ client: c, tableName: 'my_custom_table' })
+    const store = toSupabase({ client: c, tableName: 'my_custom_table' })
     await store.put('v1', 'c1', 'r1', env(1))
     expect(c.rowMap.size).toBe(1)
   })

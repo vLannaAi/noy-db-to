@@ -8,7 +8,7 @@
  * ## When to use
  *
  * - **Blob / attachment storage** — pair with `@noy-db/to-aws-dynamo` via
- *   `routeStore({ default: dynamo(...), blobs: s3(...) })` to route
+ *   `routeStore({ default: toAwsDynamo(...), blobs: toAwsS3(...) })` to route
  *   encrypted binary chunks to S3.
  * - **Archive tier** — configure `routeStore` age-based tiering so old
  *   records migrate to S3 while hot records stay in DynamoDB.
@@ -44,7 +44,7 @@ import {
 import { mapAws } from './credentials.js'
 
 /**
- * Options for `s3()`.
+ * Options for `toAwsS3()`.
  *
  * Objects are stored at `{prefix}/{vault}/{collection}/{id}.json`.
  * `loadAll()` uses `ListObjectsV2` over the vault prefix followed by parallel
@@ -92,7 +92,7 @@ function isPreconditionFailed(err: unknown): boolean {
   return meta?.httpStatusCode === 412
 }
 
-export function s3(options: S3Options): NoydbStore {
+export function toAwsS3(options: S3Options): NoydbStore {
   const { bucket, prefix = '' } = options
   const clockUncertaintyMs = options.clockUncertaintyMs ?? 5_000
 

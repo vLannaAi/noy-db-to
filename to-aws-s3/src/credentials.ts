@@ -15,7 +15,7 @@ export interface AwsCredentialIdentityLike {
 /**
  * Maps a broker-issued `StoreCredentials` to the shape the AWS SDK v3
  * credential provider expects. Shared by both S3Client construction sites
- * in this package (`s3()` and `s3Bundle()`). Conditional-spread for both
+ * in this package (`toAwsS3()` and `s3Bundle()`). Conditional-spread for both
  * optional fields: `exactOptionalPropertyTypes` forbids `expiration:
  * undefined`, and the SDK's credential memoizer treats an *absent*
  * `expiration` as "unknown, never re-invoke" vs. a present `Date` as

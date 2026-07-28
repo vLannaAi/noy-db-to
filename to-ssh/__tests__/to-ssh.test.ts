@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { ssh, type SftpHandle } from '../src/index.js'
+import { toSsh, type SftpHandle } from '../src/index.js'
 
 /**
  * In-memory mock of the SFTP handle. Implements the same rename /
@@ -91,10 +91,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-ssh', () => {
   let sftp: ReturnType<typeof mockSftp>
-  let store: ReturnType<typeof ssh>
+  let store: ReturnType<typeof toSsh>
   beforeEach(() => {
     sftp = mockSftp()
-    store = ssh({ sftp, remotePath: 'noydb' })
+    store = toSsh({ sftp, remotePath: 'noydb' })
   })
 
   it('name defaults to "ssh"', () => {
@@ -171,7 +171,7 @@ describe('@noy-db/to-ssh', () => {
   })
 
   it('custom name is threaded through for diagnostics', () => {
-    const named = ssh({ sftp: mockSftp(), name: 'my-vps' })
+    const named = toSsh({ sftp: mockSftp(), name: 'my-vps' })
     expect(named.name).toBe('my-vps')
   })
 })

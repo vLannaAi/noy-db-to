@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { webdav } from '../src/index.js'
+import { toWebdav } from '../src/index.js'
 
 /** In-memory WebDAV server mock — captures requests + answers from a Map. */
 function mockServer(baseUrl: string) {
@@ -69,11 +69,11 @@ function env(v: number): EncryptedEnvelope {
 describe('@noy-db/to-webdav', () => {
   const baseUrl = 'https://dav.example.com/remote.php/dav/files/alice'
   let server: ReturnType<typeof mockServer>
-  let store: ReturnType<typeof webdav>
+  let store: ReturnType<typeof toWebdav>
 
   beforeEach(() => {
     server = mockServer(baseUrl)
-    store = webdav({ baseUrl, fetch: server.fetchImpl })
+    store = toWebdav({ baseUrl, fetch: server.fetchImpl })
   })
 
   it('name is "webdav"', () => expect(store.name).toBe('webdav'))
@@ -129,7 +129,7 @@ describe('@noy-db/to-webdav', () => {
   })
 
   it('passes base headers on every request', async () => {
-    store = webdav({ baseUrl, fetch: server.fetchImpl, headers: { Authorization: 'Bearer sekret' } })
+    store = toWebdav({ baseUrl, fetch: server.fetchImpl, headers: { Authorization: 'Bearer sekret' } })
     await store.put('v1', 'c1', 'r1', env(1))
     const hasAuth = server.calls.every(c => c.headers.Authorization === 'Bearer sekret' || c.method === 'MKCOL' || c.headers.Authorization === 'Bearer sekret')
     // Relaxed: every captured call should have included the header.

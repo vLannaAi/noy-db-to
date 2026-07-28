@@ -41,7 +41,7 @@ import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentials, St
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
- * Options for `dynamo()`.
+ * Options for `toAwsDynamo()`.
  *
  * The adapter uses a single-table design with a composite primary key
  * `pk = {vault}` (partition) and `sk = {collection}#{id}` (sort). This keeps
@@ -137,7 +137,7 @@ interface QueryCommandInput {
  *   rows written before this change keep reading correctly (dual-read
  *   fallback in `itemToEnvelope`) — no data migration required (pre-1.0).
  */
-export function dynamo(options: DynamoOptions): NoydbStore {
+export function toAwsDynamo(options: DynamoOptions): NoydbStore {
   const { table } = options
 
   // Lazy client initialization — only creates the client when first used

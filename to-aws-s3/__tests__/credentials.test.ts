@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { StoreCredentials } from '@noy-db/hub/to'
 
 // #479 credential-broker adoption — `credentials?: StoreCredentialSource` on
-// BOTH `S3Options` (s3()) and `S3BundleOptions` (s3Bundle()), threaded into
+// BOTH `S3Options` (toAwsS3()) and `S3BundleOptions` (s3Bundle()), threaded into
 // each site's `new S3Client({...})` as a functional provider. `mapAws` is a
 // SHARED pure aws-shape mapper (to-aws-s3/src/credentials.ts) used by both
-// factories. Unlike to-aws-dynamo's lazy client, s3()/s3Bundle() build their
+// factories. Unlike to-aws-dynamo's lazy client, toAwsS3()/s3Bundle() build their
 // S3Client EAGERLY and SYNCHRONOUSLY inside the factory call itself — no
 // operation call is needed to force construction.
 
@@ -61,7 +61,7 @@ describe('to-aws-s3 — credentials refresh hook', () => {
     })
   })
 
-  describe('s3() client construction wiring', () => {
+  describe('toAwsS3() client construction wiring', () => {
     beforeEach(() => {
       vi.resetModules()
     })
@@ -76,15 +76,15 @@ describe('to-aws-s3 — credentials refresh hook', () => {
         },
       }))
 
-      const { s3 } = await import('../src/index.js')
+      const { toAwsS3 } = await import('../src/index.js')
       const creds: StoreCredentials = {
         kind: 'aws',
         accessKeyId: 'a',
         secretAccessKey: 's',
         expiresAt: '2026-07-14T12:00:00.000Z',
       }
-      // s3() builds its client eagerly and synchronously — no operation call needed.
-      s3({ bucket: 'b', credentials: async () => creds })
+      // toAwsS3() builds its client eagerly and synchronously — no operation call needed.
+      toAwsS3({ bucket: 'b', credentials: async () => creds })
 
       expect(capturedConfigs).toHaveLength(1)
       const config = capturedConfigs[0]
@@ -107,8 +107,8 @@ describe('to-aws-s3 — credentials refresh hook', () => {
         },
       }))
 
-      const { s3 } = await import('../src/index.js')
-      s3({ bucket: 'b' })
+      const { toAwsS3 } = await import('../src/index.js')
+      toAwsS3({ bucket: 'b' })
 
       expect(capturedConfigs).toHaveLength(1)
       expect('credentials' in capturedConfigs[0]).toBe(false)
@@ -126,9 +126,9 @@ describe('to-aws-s3 — credentials refresh hook', () => {
         },
       }))
 
-      const { s3 } = await import('../src/index.js')
+      const { toAwsS3 } = await import('../src/index.js')
       const fakeClient = { send: async () => ({}) }
-      s3({
+      toAwsS3({
         bucket: 'b',
         client: fakeClient as never,
         credentials: async () => ({ kind: 'aws', accessKeyId: 'a', secretAccessKey: 's' }),

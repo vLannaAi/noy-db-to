@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
-import { postgres, type PostgresClient } from '../src/index.js'
+import { toPostgres, type PostgresClient } from '../src/index.js'
 
 /**
  * In-memory mock of a pg-style Client. Parses the small set of SQL
@@ -103,10 +103,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-postgres', () => {
   let client: ReturnType<typeof mockClient>
-  let store: ReturnType<typeof postgres>
+  let store: ReturnType<typeof toPostgres>
   beforeEach(() => {
     client = mockClient()
-    store = postgres({ client })
+    store = toPostgres({ client })
   })
 
   it('name is "postgres"', () => {

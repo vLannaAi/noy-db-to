@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { BundleVersionConflictError } from '@noy-db/hub'
 import {
-  drive,
+  toDrive,
   memoryHandleStore,
   newUlid,
   type DriveClient,
@@ -77,18 +77,18 @@ describe('@noy-db/to-drive', () => {
   beforeEach(() => { client = mockDrive() })
 
   it('kind is "bundle" and name is "google-drive"', () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     expect(store.kind).toBe('bundle')
     expect(store.name).toBe('google-drive')
   })
 
   it('readBundle returns null for unknown vault', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     expect(await store.readBundle('acme')).toBeNull()
   })
 
   it('first writeBundle creates a file with a ULID name', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     const { version } = await store.writeBundle('acme', bytes('v1'), null)
     expect(version).toBe('1')
     const entries = [...client.files.values()]
@@ -98,7 +98,7 @@ describe('@noy-db/to-drive', () => {
   })
 
   it('subsequent writeBundle updates the same file', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     await store.writeBundle('acme', bytes('v1'), null)
     const { version } = await store.writeBundle('acme', bytes('v2'), '1')
     expect(version).toBe('2')
@@ -106,20 +106,20 @@ describe('@noy-db/to-drive', () => {
   })
 
   it('writeBundle with wrong expectedVersion throws BundleVersionConflictError', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     await store.writeBundle('acme', bytes('v1'), null)
     await expect(store.writeBundle('acme', bytes('v2'), '999'))
       .rejects.toBeInstanceOf(BundleVersionConflictError)
   })
 
   it('writeBundle refuses first write when expectedVersion is provided', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     await expect(store.writeBundle('acme', bytes('v1'), 'ghost-version'))
       .rejects.toBeInstanceOf(BundleVersionConflictError)
   })
 
   it('readBundle returns current content + version', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     const { version } = await store.writeBundle('acme', bytes('hello'), null)
     const read = await store.readBundle('acme')
     expect(read).not.toBeNull()
@@ -129,7 +129,7 @@ describe('@noy-db/to-drive', () => {
 
   it('deleteBundle removes the file and clears the handle', async () => {
     const handles = memoryHandleStore()
-    const store = drive({ drive: client, handles })
+    const store = toDrive({ drive: client, handles })
     await store.writeBundle('acme', bytes('v1'), null)
     await store.deleteBundle('acme')
     expect(await handles.getHandle('acme')).toBeNull()
@@ -138,7 +138,7 @@ describe('@noy-db/to-drive', () => {
 
   it('readBundle clears the handle when the Drive file has vanished', async () => {
     const handles = memoryHandleStore()
-    const store = drive({ drive: client, handles })
+    const store = toDrive({ drive: client, handles })
     await store.writeBundle('acme', bytes('v1'), null)
     const handle = (await handles.getHandle('acme'))!
     // Simulate out-of-band delete from the Drive UI.
@@ -148,7 +148,7 @@ describe('@noy-db/to-drive', () => {
   })
 
   it('listBundles reports via the handle registry', async () => {
-    const store = drive({ drive: client })
+    const store = toDrive({ drive: client })
     await store.writeBundle('acme', bytes('v1'), null)
     await store.writeBundle('globex', bytes('v1'), null)
     const list = await store.listBundles()
@@ -156,7 +156,7 @@ describe('@noy-db/to-drive', () => {
   })
 
   it('custom suffix is honored in the created filename', async () => {
-    const store = drive({ drive: client, suffix: '.nvault' })
+    const store = toDrive({ drive: client, suffix: '.nvault' })
     await store.writeBundle('acme', bytes('v1'), null)
     const entry = [...client.files.values()][0]!
     expect(entry.name.endsWith('.nvault')).toBe(true)

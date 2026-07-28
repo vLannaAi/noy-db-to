@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { S3Client } from '@aws-sdk/client-s3'
-import { s3 } from '../src/index.js'
+import { toAwsS3 } from '../src/index.js'
 
 /**
  * Mock S3Client. Captures every command sent and returns canned responses
@@ -39,13 +39,13 @@ function bodyOf(json: unknown): { transformToString: () => Promise<string> } {
 describe('@noy-db/store-aws-s3 — listPage', () => {
   it('1. has a name field for diagnostic logging', () => {
     const { client } = mockClient({})
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     expect(adapter.name).toBe('s3')
   })
 
   it('2. exposes listPage as an optional method', () => {
     const { client } = mockClient({})
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     expect(typeof adapter.listPage).toBe('function')
   })
 
@@ -53,7 +53,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
     const { client, sent } = mockClient({
       ListObjectsV2Command: () => ({ Contents: [], IsTruncated: false }),
     })
-    const adapter = s3({ bucket: 'noydb-prod', client })
+    const adapter = toAwsS3({ bucket: 'noydb-prod', client })
     await adapter.listPage!('C1', 'invoices', undefined, 25)
 
     const listCall = sent.find(c => c.name === 'ListObjectsV2Command')
@@ -66,7 +66,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
     const { client, sent } = mockClient({
       ListObjectsV2Command: () => ({ Contents: [], IsTruncated: false }),
     })
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     await adapter.listPage!('C1', 'invoices', 'opaque-continuation-token-from-s3', 10)
 
     const input = sent[0]!.input as { ContinuationToken?: string }
@@ -93,7 +93,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
       },
     })
 
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
 
     expect(page.items).toHaveLength(2)
@@ -109,7 +109,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
         NextContinuationToken: 'next-page-token',
       }),
     })
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
     expect(page.nextCursor).toBe('next-page-token')
   })
@@ -118,7 +118,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
     const { client } = mockClient({
       ListObjectsV2Command: () => ({ Contents: [], IsTruncated: false }),
     })
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
     expect(page.nextCursor).toBeNull()
   })
@@ -127,7 +127,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
     const { client } = mockClient({
       ListObjectsV2Command: () => ({ Contents: [], IsTruncated: true }),
     })
-    const adapter = s3({ bucket: 'b', client })
+    const adapter = toAwsS3({ bucket: 'b', client })
     const page = await adapter.listPage!('C1', 'invoices', undefined, 10)
     expect(page.nextCursor).toBeNull()
   })
@@ -136,7 +136,7 @@ describe('@noy-db/store-aws-s3 — listPage', () => {
     const { client, sent } = mockClient({
       ListObjectsV2Command: () => ({ Contents: [], IsTruncated: false }),
     })
-    const adapter = s3({ bucket: 'b', prefix: 'app1', client })
+    const adapter = toAwsS3({ bucket: 'b', prefix: 'app1', client })
     await adapter.listPage!('C1', 'invoices')
 
     const input = sent[0]!.input as { Prefix?: string }

@@ -36,7 +36,7 @@ import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/t
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
- * Options for `browserLocalStore()`.
+ * Options for `toBrowserLocal()`.
  *
  * All NOYDB data is stored in `localStorage` under `{prefix}:{vault}:{collection}:{id}`.
  * Enable `obfuscate` to replace each path component with an FNV-1a hash and
@@ -62,7 +62,7 @@ export interface BrowserLocalOptions {
  *   casAtomic: false — single-tab: synchronous and inherently atomic; cross-tab: no serialization
  *   auth: { kind: 'browser-origin', flow: 'implicit', required: false }
  */
-export function browserLocalStore(options: BrowserLocalOptions = {}): NoydbStore {
+export function toBrowserLocal(options: BrowserLocalOptions = {}): NoydbStore {
   const prefix = options.prefix ?? 'noydb'
   const obfuscate = options.obfuscate ?? false
   const obfKey = obfuscate ? makeObfKey(prefix) : ''

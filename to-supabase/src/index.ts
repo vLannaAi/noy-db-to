@@ -20,11 +20,11 @@
  *
  * ```ts
  * import { createClient } from '@supabase/supabase-js'
- * import { supabase } from '@noy-db/to-supabase'
+ * import { toSupabase } from '@noy-db/to-supabase'
  * import pg from 'pg'
  *
  * const pool = new pg.Pool({ connectionString: process.env.SUPABASE_DB_URL })
- * const store = supabase({ client: pool })
+ * const store = toSupabase({ client: pool })
  *
  * // Optionally, the Supabase JS client for Storage-based blob routing:
  * const s = createClient(url, key)
@@ -41,7 +41,7 @@
 
 import type { NoydbStore } from '@noy-db/hub/to'
 import type { PostgresClient, PostgresStoreOptions } from '@noy-db/to-postgres'
-import { postgres } from '@noy-db/to-postgres'
+import { toPostgres } from '@noy-db/to-postgres'
 
 export type { PostgresClient }
 
@@ -58,8 +58,8 @@ export interface SupabaseStoreOptions extends Omit<PostgresStoreOptions, 'client
  * Create a noy-db store backed by a Supabase Postgres connection.
  * Inherits the entire `@noy-db/to-postgres` feature set.
  */
-export function supabase(options: SupabaseStoreOptions): NoydbStore {
-  const base = postgres(options)
+export function toSupabase(options: SupabaseStoreOptions): NoydbStore {
+  const base = toPostgres(options)
   return {
     ...base,
     name: 'supabase',

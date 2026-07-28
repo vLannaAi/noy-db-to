@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { smb, type SmbHandle } from '../src/index.js'
+import { toSmb, type SmbHandle } from '../src/index.js'
 
 function mockSmb(): SmbHandle & { files: Map<string, string>; dirs: Set<string> } {
   const files = new Map<string, string>()
@@ -58,10 +58,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-smb', () => {
   let smbClient: ReturnType<typeof mockSmb>
-  let store: ReturnType<typeof smb>
+  let store: ReturnType<typeof toSmb>
   beforeEach(() => {
     smbClient = mockSmb()
-    store = smb({ smb: smbClient })
+    store = toSmb({ smb: smbClient })
   })
 
   it('name defaults to "smb"', () => {
@@ -124,7 +124,7 @@ describe('@noy-db/to-smb', () => {
   })
 
   it('custom name threads through', () => {
-    const s = smb({ smb: mockSmb(), name: 'corp-nas' })
+    const s = toSmb({ smb: mockSmb(), name: 'corp-nas' })
     expect(s.name).toBe('corp-nas')
   })
 })

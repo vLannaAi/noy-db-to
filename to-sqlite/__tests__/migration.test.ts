@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { sqlite, type SqliteDatabase } from '../src/index.js'
+import { toSqlite, type SqliteDatabase } from '../src/index.js'
 
 /**
  * Real-engine migration test (`node:sqlite`, Node 22+) — the strongest guard
@@ -54,7 +54,7 @@ describe('@noy-db/to-sqlite — real-engine migration (node:sqlite)', () => {
     // merely constructing this store did nothing destructive (autoMigrate
     // only ran `CREATE TABLE IF NOT EXISTS`, a no-op here) — the failure
     // surfaced on first use, below.
-    const store = sqlite({ db: raw as unknown as SqliteDatabase })
+    const store = toSqlite({ db: raw as unknown as SqliteDatabase })
 
     // (c) a brand-new put() must succeed — proves the ALTER TABLE ADD
     // COLUMN env landed AND that writing real iv/data values keeps
