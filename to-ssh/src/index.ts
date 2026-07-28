@@ -93,7 +93,7 @@ function decode(bytes: Uint8Array | Buffer): string {
   return new TextDecoder().decode(bytes)
 }
 
-export function ssh(options: SshStoreOptions): NoydbStore {
+export function toSsh(options: SshStoreOptions): NoydbStore {
   const { sftp, remotePath = 'noydb', name = 'ssh' } = options
 
   const root = remotePath.replace(/^\/+|\/+$/g, '')

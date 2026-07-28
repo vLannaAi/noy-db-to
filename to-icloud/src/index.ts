@@ -82,7 +82,7 @@ function isConflictCopy(name: string, expected: string): boolean {
  * Build a `NoydbPodStore` over an iCloud Drive folder. Wrap with
  * `wrapBundleStore()` to consume via `createNoydb({ store })`.
  */
-export function icloud(options: ICloudStoreOptions): NoydbPodStore {
+export function toIcloud(options: ICloudStoreOptions): NoydbPodStore {
   const suffix = options.suffix ?? '.noydb'
   const dir = options.folder.replace(/\/+$/, '')
   const { fs } = options

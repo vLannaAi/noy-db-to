@@ -69,14 +69,14 @@ describe('to-aws-dynamo — credentials refresh hook', () => {
         QueryCommand: class { constructor(public input: unknown) {} },
       }))
 
-      const { dynamo } = await import('../src/index.js')
+      const { toAwsDynamo } = await import('../src/index.js')
       const creds: StoreCredentials = {
         kind: 'aws',
         accessKeyId: 'a',
         secretAccessKey: 's',
         expiresAt: '2026-07-14T12:00:00.000Z',
       }
-      const adapter = dynamo({ table: 't', credentials: async () => creds })
+      const adapter = toAwsDynamo({ table: 't', credentials: async () => creds })
 
       // Any operation forces getClient() to build the SDK config.
       await adapter.ping().catch(() => {})
@@ -107,8 +107,8 @@ describe('to-aws-dynamo — credentials refresh hook', () => {
         QueryCommand: class { constructor(public input: unknown) {} },
       }))
 
-      const { dynamo } = await import('../src/index.js')
-      const adapter = dynamo({ table: 't' })
+      const { toAwsDynamo } = await import('../src/index.js')
+      const adapter = toAwsDynamo({ table: 't' })
       await adapter.ping().catch(() => {})
 
       expect(capturedConfigs).toHaveLength(1)
@@ -131,9 +131,9 @@ describe('to-aws-dynamo — credentials refresh hook', () => {
         DynamoDBDocumentClient: { from: (client: unknown) => client },
       }))
 
-      const { dynamo } = await import('../src/index.js')
+      const { toAwsDynamo } = await import('../src/index.js')
       const fakeClient = { send: async () => ({ Items: [] }) }
-      const adapter = dynamo({
+      const adapter = toAwsDynamo({
         table: 't',
         client: fakeClient,
         credentials: async () => ({ kind: 'aws', accessKeyId: 'a', secretAccessKey: 's' }),

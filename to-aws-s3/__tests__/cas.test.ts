@@ -2,7 +2,7 @@
  * CAS (compare-and-swap) unit tests for the `casAtomic: true` capability.
  *
  * `to-aws-s3` (and `to-cloudflare-r2`, which inherits this `put` via
- * `...s3(opts)`) implement atomic CAS on top of S3 conditional writes:
+ * `...toAwsS3(opts)`) implement atomic CAS on top of S3 conditional writes:
  *   - create-only  → `PutObject` with `IfNoneMatch: '*'`
  *   - update       → `GetObject` (read `_v` + ETag) then `PutObject` with
  *                    `IfMatch: <etag>`
@@ -19,7 +19,7 @@ import { describe, it, expect } from 'vitest'
 import type { S3Client } from '@aws-sdk/client-s3'
 import { ConflictError } from '@noy-db/hub'
 import type { EncryptedEnvelope } from '@noy-db/hub'
-import { s3 } from '../src/index.js'
+import { toAwsS3 } from '../src/index.js'
 
 interface Hooks {
   /** Fired after each GetObjectCommand is served, with the object key. Lets a
@@ -75,13 +75,13 @@ function env(v: number): EncryptedEnvelope {
 describe('to-aws-s3 CAS (casAtomic)', () => {
   it('declares casAtomic: true', () => {
     const { client } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     expect(store.capabilities?.casAtomic).toBe(true)
   })
 
   it('create-only (expectedVersion 0): first write succeeds, second throws ConflictError', async () => {
     const { client, objects } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await store.put('v', 'c', 'id', env(1), 0)
     expect(objects.size).toBe(1)
     await expect(store.put('v', 'c', 'id', env(1), 0)).rejects.toBeInstanceOf(ConflictError)
@@ -89,7 +89,7 @@ describe('to-aws-s3 CAS (casAtomic)', () => {
 
   it('update: matching expectedVersion succeeds and bumps the stored version', async () => {
     const { client } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await store.put('v', 'c', 'id', env(1), 0)
     await store.put('v', 'c', 'id', env(2), 1)
     expect((await store.get('v', 'c', 'id'))?._v).toBe(2)
@@ -97,7 +97,7 @@ describe('to-aws-s3 CAS (casAtomic)', () => {
 
   it('update: stale expectedVersion throws ConflictError without writing', async () => {
     const { client } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await store.put('v', 'c', 'id', env(1), 0)
     await store.put('v', 'c', 'id', env(2), 1) // now at v=2
     await expect(store.put('v', 'c', 'id', env(3), 1)).rejects.toBeInstanceOf(ConflictError)
@@ -106,14 +106,14 @@ describe('to-aws-s3 CAS (casAtomic)', () => {
 
   it('update: missing key throws ConflictError', async () => {
     const { client } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await expect(store.put('v', 'c', 'ghost', env(2), 1)).rejects.toBeInstanceOf(ConflictError)
   })
 
   it('update: a concurrent writer between Get and Put trips the IfMatch guard → ConflictError', async () => {
     const hooks: Hooks = {}
     const { client, objects } = fakeS3(hooks)
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await store.put('v', 'c', 'id', env(1), 0)
     // Inject exactly one concurrent write the next time the store reads this
     // key: bump the stored ETag so the IfMatch the store captured is stale.
@@ -127,7 +127,7 @@ describe('to-aws-s3 CAS (casAtomic)', () => {
 
   it('unconditional put (no expectedVersion) overwrites', async () => {
     const { client } = fakeS3()
-    const store = s3({ bucket: 'b', client })
+    const store = toAwsS3({ bucket: 'b', client })
     await store.put('v', 'c', 'id', env(1))
     await store.put('v', 'c', 'id', env(9))
     expect((await store.get('v', 'c', 'id'))?._v).toBe(9)

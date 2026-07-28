@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { BundleVersionConflictError } from '@noy-db/hub'
-import { icloud, type ICloudFs } from '../src/index.js'
+import { toIcloud, type ICloudFs } from '../src/index.js'
 
 /**
  * In-memory fake file system with iCloud-style eviction semantics.
@@ -72,18 +72,18 @@ describe('@noy-db/to-icloud', () => {
   beforeEach(() => { fs = mockFs() })
 
   it('kind is "bundle" and name is "icloud"', () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     expect(store.kind).toBe('bundle')
     expect(store.name).toBe('icloud')
   })
 
   it('readBundle returns null when no bundle exists', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     expect(await store.readBundle('acme')).toBeNull()
   })
 
   it('writeBundle + readBundle round-trip', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     const payload = bytes('hello-vault')
     const { version } = await store.writeBundle('acme', payload, null)
     expect(version).toBeTruthy()
@@ -95,14 +95,14 @@ describe('@noy-db/to-icloud', () => {
   })
 
   it('writeBundle throws on version mismatch', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     await store.writeBundle('acme', bytes('v1'), null)
     await expect(store.writeBundle('acme', bytes('v2'), 'wrong-version'))
       .rejects.toBeInstanceOf(BundleVersionConflictError)
   })
 
   it('writeBundle raises on detected conflict file', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     await store.writeBundle('acme', bytes('v1'), null)
 
     // Inject a conflict file as iCloud would.
@@ -114,7 +114,7 @@ describe('@noy-db/to-icloud', () => {
   })
 
   it('deleteBundle is idempotent', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     await store.writeBundle('acme', bytes('v1'), null)
     await store.deleteBundle('acme')
     await expect(store.deleteBundle('acme')).resolves.toBeUndefined()
@@ -122,7 +122,7 @@ describe('@noy-db/to-icloud', () => {
   })
 
   it('listBundles enumerates vault bundles excluding .icloud stubs', async () => {
-    const store = icloud({ folder: dir, fs })
+    const store = toIcloud({ folder: dir, fs })
     await store.writeBundle('acme', bytes('v1'), null)
     await store.writeBundle('globex', bytes('v1'), null)
     // Offload the acme file — the stub should be filtered out of list.
@@ -134,7 +134,7 @@ describe('@noy-db/to-icloud', () => {
   })
 
   it('custom suffix is honored throughout', async () => {
-    const store = icloud({ folder: dir, fs, suffix: '.nvault' })
+    const store = toIcloud({ folder: dir, fs, suffix: '.nvault' })
     await store.writeBundle('acme', bytes('v1'), null)
     expect([...fs.files.keys()]).toEqual([`${dir}/acme.nvault`])
     const list = await store.listBundles()

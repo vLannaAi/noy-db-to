@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
-import { sqlite, type SqliteDatabase, type SqliteStatement } from '../src/index.js'
+import { toSqlite, type SqliteDatabase, type SqliteStatement } from '../src/index.js'
 
 /**
  * In-memory mock of the duck-typed `SqliteDatabase` interface.
@@ -105,10 +105,10 @@ function env(v: number, iv = 'aaaa'): EncryptedEnvelope {
 
 describe('@noy-db/to-sqlite', () => {
   let db: ReturnType<typeof mockDb>
-  let store: ReturnType<typeof sqlite>
+  let store: ReturnType<typeof toSqlite>
   beforeEach(() => {
     db = mockDb()
-    store = sqlite({ db })
+    store = toSqlite({ db })
   })
 
   it('name is "sqlite"', () => {

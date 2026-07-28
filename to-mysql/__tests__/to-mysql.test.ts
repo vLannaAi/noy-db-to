@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub'
 import { ConflictError } from '@noy-db/hub'
-import { mysql, type MysqlClient } from '../src/index.js'
+import { toMysql, type MysqlClient } from '../src/index.js'
 
 function mockClient(): MysqlClient & { rowMap: Map<string, Row> } {
   interface Row { vault: string; collection: string; id: string; v: number; envelope: EncryptedEnvelope }
@@ -82,10 +82,10 @@ function env(v: number): EncryptedEnvelope {
 
 describe('@noy-db/to-mysql', () => {
   let client: ReturnType<typeof mockClient>
-  let store: ReturnType<typeof mysql>
+  let store: ReturnType<typeof toMysql>
   beforeEach(() => {
     client = mockClient()
-    store = mysql({ client })
+    store = toMysql({ client })
   })
 
   it('name is "mysql"', () => expect(store.name).toBe('mysql'))

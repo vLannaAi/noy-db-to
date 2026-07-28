@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { EncryptedEnvelope } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
-import { dynamo, type DynamoDocClient } from '../src/index.js'
+import { toAwsDynamo, type DynamoDocClient } from '../src/index.js'
 
 /**
  * In-memory mock DynamoDB document client. Mirrors the single-table
@@ -35,7 +35,7 @@ function mockClient(): { client: DynamoDocClient; items: Map<string, Record<stri
 describe('@noy-db/to-aws-dynamo — full-envelope round-trip', () => {
   it('round-trips a _del delete-marker envelope byte-identically', async () => {
     const { client } = mockClient()
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
 
     const envelope: EncryptedEnvelope = {
       _noydb: 1,
@@ -52,7 +52,7 @@ describe('@noy-db/to-aws-dynamo — full-envelope round-trip', () => {
 
   it('round-trips a maximal envelope byte-identically (every field survives, not just _del)', async () => {
     const { client } = mockClient()
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
 
     const envelope: EncryptedEnvelope = {
       _noydb: 1,
@@ -78,7 +78,7 @@ describe('@noy-db/to-aws-dynamo — full-envelope round-trip', () => {
     // attribute, real data in the old per-attribute layout. Seeded directly
     // into the mock's backing store — never went through `adapter.put()`.
     const { client, items } = mockClient()
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
 
     items.set('v1\x00c1#legacy1', {
       pk: 'v1',
@@ -123,7 +123,7 @@ describe('@noy-db/to-aws-dynamo — full-envelope round-trip', () => {
         throw new Error(`Mock client got unexpected command: ${name}`)
       },
     }
-    const adapter = dynamo({ table: 't', client })
+    const adapter = toAwsDynamo({ table: 't', client })
 
     const envelope: EncryptedEnvelope = {
       _noydb: 1, _v: 5, _ts: '2026-07-09T00:00:00.000Z', _iv: 'iv', _data: 'data',

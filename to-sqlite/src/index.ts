@@ -73,7 +73,7 @@ interface Row {
   del: number | null
 }
 
-export function sqlite(options: SqliteStoreOptions): NoydbStore {
+export function toSqlite(options: SqliteStoreOptions): NoydbStore {
   const { db, tableName = 'noydb_envelopes', autoMigrate = true } = options
 
   if (autoMigrate) {

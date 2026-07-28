@@ -4,7 +4,7 @@
  * R2 is S3-API-compatible, so this package is a thin factory that
  * configures `@noy-db/to-aws-s3` to point at the R2 endpoint and
  * pass the R2-specific access key signature. Inherits all capabilities
- * from `s3()` — `casAtomic: true`, `serverWriteTime: true`, server-clock
+ * from `toAwsS3()` — `casAtomic: true`, `serverWriteTime: true`, server-clock
  * sampling via `LastModified`, and `IfMatch`/`IfNoneMatch` conditional CAS.
  *
  * ## Why R2 for noy-db?
@@ -21,9 +21,9 @@
  * the bucket name:
  *
  * ```ts
- * import { r2 } from '@noy-db/to-cloudflare-r2'
+ * import { toCloudflareR2 } from '@noy-db/to-cloudflare-r2'
  *
- * const store = r2({
+ * const store = toCloudflareR2({
  *   accountId: 'abc123…',       // Cloudflare dashboard → R2 → account id
  *   bucket: 'my-noydb-bucket',
  *   accessKeyId: process.env.R2_ACCESS_KEY_ID!,
@@ -41,7 +41,7 @@
 import type { NoydbStore, StoreCredentialSource } from '@noy-db/hub/to'
 import type { S3Client, S3ClientConfig } from '@aws-sdk/client-s3'
 import { S3Client as RealS3Client } from '@aws-sdk/client-s3'
-import { s3, mapAws } from '@noy-db/to-aws-s3'
+import { toAwsS3, mapAws } from '@noy-db/to-aws-s3'
 
 export interface R2Options {
   /** Cloudflare account id (from the R2 dashboard). Required unless `client` is supplied. */
@@ -74,7 +74,7 @@ export interface R2Options {
   readonly client?: S3Client
   /** Override the endpoint. Default derived from `accountId`. */
   readonly endpoint?: string
-  /** Clock uncertainty bound for serverWriteTime (ms). Forwarded to s3(). Default: 5000. */
+  /** Clock uncertainty bound for serverWriteTime (ms). Forwarded to toAwsS3(). Default: 5000. */
   clockUncertaintyMs?: number
 }
 
@@ -91,19 +91,19 @@ export function r2EndpointFor(accountId: string): string {
 
 /**
  * Create a noy-db store backed by Cloudflare R2. Delegates to
- * `@noy-db/to-aws-s3`'s `s3()` with R2-specific endpoint + region
+ * `@noy-db/to-aws-s3`'s `toAwsS3()` with R2-specific endpoint + region
  * configured.
  */
-export function r2(options: R2Options): NoydbStore {
+export function toCloudflareR2(options: R2Options): NoydbStore {
   if (options.client) {
-    const opts: Parameters<typeof s3>[0] = {
+    const opts: Parameters<typeof toAwsS3>[0] = {
       bucket: options.bucket,
       ...(options.prefix !== undefined && { prefix: options.prefix }),
       client: options.client,
       ...(options.clockUncertaintyMs !== undefined && { clockUncertaintyMs: options.clockUncertaintyMs }),
     }
     return {
-      ...s3(opts),
+      ...toAwsS3(opts),
       name: 'cloudflare-r2',
       capabilities: {
         casAtomic: true,
@@ -133,14 +133,14 @@ export function r2(options: R2Options): NoydbStore {
     forcePathStyle: true,
   }
   const built = new RealS3Client(config)
-  const opts: Parameters<typeof s3>[0] = {
+  const opts: Parameters<typeof toAwsS3>[0] = {
     bucket: options.bucket,
     ...(options.prefix !== undefined && { prefix: options.prefix }),
     client: built,
     ...(options.clockUncertaintyMs !== undefined && { clockUncertaintyMs: options.clockUncertaintyMs }),
   }
   return {
-    ...s3(opts),
+    ...toAwsS3(opts),
     name: 'cloudflare-r2',
     capabilities: {
       casAtomic: true,

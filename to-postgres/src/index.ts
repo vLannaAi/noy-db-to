@@ -54,7 +54,7 @@ interface Row {
   envelope: EncryptedEnvelope
 }
 
-export function postgres(options: PostgresStoreOptions): NoydbStore {
+export function toPostgres(options: PostgresStoreOptions): NoydbStore {
   const { client, tableName = 'noydb_envelopes', autoMigrate = true } = options
   let schemaReady: Promise<void> | null = null
 

@@ -132,7 +132,7 @@ export async function runMountDiagnostics(
  * first use and are cached — failures raise (or warn) based on
  * `onNolock`.
  */
-export function nfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): Promise<{ risks: string[]; info: MountInfo }> } {
+export function toNfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): Promise<{ risks: string[]; info: MountInfo }> } {
   const onNolock = options.onNolock ?? 'warn'
   const base = jsonFile({ dir: options.mountPath })
   let diagnosed: Promise<{ risks: string[]; info: MountInfo }> | null = null

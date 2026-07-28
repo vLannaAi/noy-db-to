@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { StoreCredentials } from '@noy-db/hub/to'
-import { turso, type LibsqlClient } from '../src/index.js'
+import { toTurso, type LibsqlClient } from '../src/index.js'
 
 // #479 credential-broker adoption for Turso (noy-db-to#11) — libSQL clients
 // take a static `authToken` at construction, so the STORE owns the refresh:
@@ -60,7 +60,7 @@ describe('to-turso — credentials refresh hook', () => {
   it('builds the client via clientFactory with the broker token and executes through it', async () => {
     const { factory, tokens, clients } = factoryRecorder()
     const { source } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
-    const store = turso({ clientFactory: factory, credentials: source })
+    const store = toTurso({ clientFactory: factory, credentials: source })
 
     await store.get('v', 'c', 'id1')
 
@@ -71,7 +71,7 @@ describe('to-turso — credentials refresh hook', () => {
   it('reuses the same client across operations while the token is unexpired', async () => {
     const { factory, tokens } = factoryRecorder()
     const { source, invocations } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
-    const store = turso({ clientFactory: factory, credentials: source })
+    const store = toTurso({ clientFactory: factory, credentials: source })
 
     await store.get('v', 'c', 'a')
     await store.get('v', 'c', 'b')
@@ -86,7 +86,7 @@ describe('to-turso — credentials refresh hook', () => {
       { token: 'tok-old', expiresAt: PAST },
       { token: 'tok-new', expiresAt: FUTURE },
     ])
-    const store = turso({ clientFactory: factory, credentials: source })
+    const store = toTurso({ clientFactory: factory, credentials: source })
 
     await store.get('v', 'c', 'a') // built with tok-old (already expired at issue time)
     const opsOnFirst = clients[0]!.executed.length
@@ -99,7 +99,7 @@ describe('to-turso — credentials refresh hook', () => {
 
   it('rejects a non-token credential kind with a clear message', async () => {
     const { factory } = factoryRecorder()
-    const store = turso({
+    const store = toTurso({
       clientFactory: factory,
       credentials: async () => ({ kind: 'aws', accessKeyId: 'a', secretAccessKey: 's' }),
     })
@@ -111,7 +111,7 @@ describe('to-turso — credentials refresh hook', () => {
     const { factory, tokens } = factoryRecorder()
     const { source, invocations } = tokenSource([{ token: 'tok-1', expiresAt: FUTURE }])
     const direct = stubClient('direct')
-    const store = turso({ client: direct, clientFactory: factory, credentials: source })
+    const store = toTurso({ client: direct, clientFactory: factory, credentials: source })
 
     await store.get('v', 'c', 'a')
 
@@ -121,8 +121,8 @@ describe('to-turso — credentials refresh hook', () => {
   })
 
   it('throws at construction when neither client nor clientFactory+credentials is supplied', () => {
-    expect(() => turso({})).toThrow(/client.*clientFactory.*credentials/i)
+    expect(() => toTurso({})).toThrow(/client.*clientFactory.*credentials/i)
     const { factory } = factoryRecorder()
-    expect(() => turso({ clientFactory: factory })).toThrow(/client.*clientFactory.*credentials/i)
+    expect(() => toTurso({ clientFactory: factory })).toThrow(/client.*clientFactory.*credentials/i)
   })
 })

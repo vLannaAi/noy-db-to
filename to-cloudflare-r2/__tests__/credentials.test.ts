@@ -29,8 +29,8 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
       },
     }))
 
-    const { r2 } = await import('../src/index.js')
-    r2({ bucket: 'b', accountId: 'acc', credentials: async () => ROLLING })
+    const { toCloudflareR2 } = await import('../src/index.js')
+    toCloudflareR2({ bucket: 'b', accountId: 'acc', credentials: async () => ROLLING })
 
     expect(capturedConfigs).toHaveLength(1)
     const config = capturedConfigs[0]
@@ -57,8 +57,8 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
       },
     }))
 
-    const { r2 } = await import('../src/index.js')
-    r2({
+    const { toCloudflareR2 } = await import('../src/index.js')
+    toCloudflareR2({
       bucket: 'b',
       accountId: 'acc',
       accessKeyId: 'STATIC_KEY',
@@ -82,8 +82,8 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
       },
     }))
 
-    const { r2 } = await import('../src/index.js')
-    r2({ bucket: 'b', accountId: 'acc', accessKeyId: 'STATIC_KEY', secretAccessKey: 'STATIC_SECRET' })
+    const { toCloudflareR2 } = await import('../src/index.js')
+    toCloudflareR2({ bucket: 'b', accountId: 'acc', accessKeyId: 'STATIC_KEY', secretAccessKey: 'STATIC_SECRET' })
 
     expect(capturedConfigs).toHaveLength(1)
     expect(capturedConfigs[0]['credentials']).toEqual({
@@ -104,9 +104,9 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
       },
     }))
 
-    const { r2 } = await import('../src/index.js')
+    const { toCloudflareR2 } = await import('../src/index.js')
     const fakeClient = { send: async () => ({}) }
-    r2({ bucket: 'b', client: fakeClient as never, credentials: async () => ROLLING })
+    toCloudflareR2({ bucket: 'b', client: fakeClient as never, credentials: async () => ROLLING })
 
     expect(capturedConfigs).toHaveLength(0)
 
@@ -114,7 +114,7 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
   })
 
   it('still requires accountId when only credentials is supplied (endpoint derivation)', async () => {
-    const { r2 } = await import('../src/index.js')
-    expect(() => r2({ bucket: 'b', credentials: async () => ROLLING })).toThrow(/client.*accountId/i)
+    const { toCloudflareR2 } = await import('../src/index.js')
+    expect(() => toCloudflareR2({ bucket: 'b', credentials: async () => ROLLING })).toThrow(/client.*accountId/i)
   })
 })

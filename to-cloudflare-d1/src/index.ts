@@ -6,11 +6,11 @@
  * — different from node-postgres or libSQL but easy to adapt.
  *
  * ```ts
- * import { d1 } from '@noy-db/to-cloudflare-d1'
+ * import { toCloudflareD1 } from '@noy-db/to-cloudflare-d1'
  *
  * export default {
  *   async fetch(request: Request, env: { DB: D1Database }) {
- *     const store = d1({ db: env.DB })
+ *     const store = toCloudflareD1({ db: env.DB })
  *     const db = await createNoydb({ store })
  *     // …
  *   },
@@ -57,7 +57,7 @@ export interface D1StoreOptions {
   readonly autoMigrate?: boolean
 }
 
-export function d1(options: D1StoreOptions): NoydbStore {
+export function toCloudflareD1(options: D1StoreOptions): NoydbStore {
   const { db, tableName = 'noydb_envelopes', autoMigrate = true } = options
   let schemaReady: Promise<void> | null = null
 

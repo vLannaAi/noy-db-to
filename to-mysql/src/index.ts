@@ -42,7 +42,7 @@ export interface MysqlStoreOptions {
   readonly autoMigrate?: boolean
 }
 
-export function mysql(options: MysqlStoreOptions): NoydbStore {
+export function toMysql(options: MysqlStoreOptions): NoydbStore {
   const { client, tableName = 'noydb_envelopes', autoMigrate = true } = options
   let schemaReady: Promise<void> | null = null
 

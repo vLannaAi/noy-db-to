@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { runStoreConformanceTests } from '@noy-db/test-adapter-conformance'
-import { browserLocalStore } from '../src/index.js'
+import { toBrowserLocal } from '../src/index.js'
 
 // ─── Full conformance suite with obfuscation ───────────────────────────
 
@@ -8,7 +8,7 @@ runStoreConformanceTests(
   'store-browser-local (obfuscate)',
   async () => {
     localStorage.clear()
-    return browserLocalStore({ prefix: `obf-${Date.now()}`, obfuscate: true })
+    return toBrowserLocal({ prefix: `obf-${Date.now()}`, obfuscate: true })
   },
   async () => {
     localStorage.clear()
@@ -21,7 +21,7 @@ describe('obfuscation: key opacity', () => {
   beforeEach(() => { localStorage.clear() })
 
   it('localStorage keys do not contain plaintext vault, collection, or ID', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('MyCompany', 'invoices', 'INV-001', {
       _noydb: 1, _v: 1, _ts: '2026-01-01', _iv: 'abc', _data: 'encrypted',
@@ -36,7 +36,7 @@ describe('obfuscation: key opacity', () => {
   })
 
   it('list() returns original IDs despite obfuscated keys', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', 'coll', 'id-alpha', { _noydb: 1, _v: 1, _ts: '', _iv: '', _data: 'a' })
     await adapter.put('C1', 'coll', 'id-beta', { _noydb: 1, _v: 1, _ts: '', _iv: '', _data: 'b' })
@@ -46,7 +46,7 @@ describe('obfuscation: key opacity', () => {
   })
 
   it('loadAll() returns original collection and ID names', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', 'invoices', 'inv-1', { _noydb: 1, _v: 1, _ts: '', _iv: '', _data: 'x' })
     await adapter.put('C1', 'payments', 'pay-1', { _noydb: 1, _v: 1, _ts: '', _iv: '', _data: 'y' })
@@ -64,7 +64,7 @@ describe('obfuscation: value opacity', () => {
   beforeEach(() => { localStorage.clear() })
 
   it('stored value does not contain plaintext collection name', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', 'invoices', 'INV-001', {
       _noydb: 1, _v: 1, _ts: '2026-01-01', _iv: 'iv123', _data: 'cipher123',
@@ -78,7 +78,7 @@ describe('obfuscation: value opacity', () => {
   })
 
   it('stored keyring value does not contain plaintext user ID or collection names', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', '_keyring', 'owner-secret', {
       _noydb: 1, _v: 1, _ts: '',
@@ -99,7 +99,7 @@ describe('obfuscation: value opacity', () => {
   })
 
   it('stored value does not contain plaintext record ID', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', 'reports', 'RPT-SECRET-42', {
       _noydb: 1, _v: 1, _ts: '', _iv: 'iv', _data: 'data',
@@ -119,8 +119,8 @@ describe('obfuscation: multi-instance isolation', () => {
   beforeEach(() => { localStorage.clear() })
 
   it('two adapter instances with different prefixes do not corrupt each other', async () => {
-    const adapterA = browserLocalStore({ prefix: 'app-a', obfuscate: true })
-    const adapterB = browserLocalStore({ prefix: 'app-b', obfuscate: true })
+    const adapterA = toBrowserLocal({ prefix: 'app-a', obfuscate: true })
+    const adapterB = toBrowserLocal({ prefix: 'app-b', obfuscate: true })
 
     await adapterA.put('C1', 'items', 'item-1', {
       _noydb: 1, _v: 1, _ts: '', _iv: 'ivA', _data: 'dataA',
@@ -149,7 +149,7 @@ describe('obfuscation: loadAll filtering', () => {
   beforeEach(() => { localStorage.clear() })
 
   it('loadAll excludes _keyring even when keys are obfuscated', async () => {
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
 
     await adapter.put('C1', 'invoices', 'inv-1', { _noydb: 1, _v: 1, _ts: '', _iv: 'iv', _data: 'data' })
     await adapter.put('C1', '_keyring', 'user-01', { _noydb: 1, _v: 1, _ts: '', _iv: '', _data: '{}' })
@@ -163,7 +163,7 @@ describe('obfuscation: loadAll filtering', () => {
     localStorage.setItem('unrelated-key', 'unrelated-value')
     localStorage.setItem('another-app:data', '{"foo": "bar"}')
 
-    const adapter = browserLocalStore({ prefix: 'test', obfuscate: true })
+    const adapter = toBrowserLocal({ prefix: 'test', obfuscate: true })
     await adapter.put('C1', 'items', 'id-1', { _noydb: 1, _v: 1, _ts: '', _iv: 'iv', _data: 'data' })
 
     const ids = await adapter.list('C1', 'items')

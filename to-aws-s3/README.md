@@ -16,13 +16,13 @@ pnpm add @noy-db/hub @noy-db/to-aws-s3 @aws-sdk/client-s3
 
 ```ts
 import { createNoydb } from '@noy-db/hub'
-import { s3 } from '@noy-db/to-aws-s3'
+import { toAwsS3 } from '@noy-db/to-aws-s3'
 import { S3Client } from '@aws-sdk/client-s3'
 
 const client = new S3Client({ region: 'ap-southeast-1' })
 
 const db = await createNoydb({
-  adapter: s3({ client, bucket: 'noydb-prod', prefix: 'tenant-a/' }),
+  adapter: toAwsS3({ client, bucket: 'noydb-prod', prefix: 'tenant-a/' }),
   userId: 'alice',
   passphrase: process.env.NOYDB_PASSPHRASE!,
 })
