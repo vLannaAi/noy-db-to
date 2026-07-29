@@ -43,6 +43,7 @@
  */
 
 import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import { ConflictError } from '@noy-db/hub/to'
 
 /**
  * Duck-typed subset of an SFTP client. Compatible with `ssh2`'s
@@ -131,10 +132,21 @@ export function toSsh(options: SshStoreOptions): NoydbStore {
       return JSON.parse(decode(bytes)) as EncryptedEnvelope
     },
 
-    async put(vault, collection, id, envelope) {
-      // expectedVersion is intentionally ignored — casAtomic: false for this
-      // transport. Consumers needing CAS should route via a store that has it.
+    async put(vault, collection, id, envelope, expectedVersion) {
+      // casAtomic: false — the check below is best-effort read-then-write
+      // (not atomic under a concurrent writer), but the contract still
+      // requires an OBSERVED version mismatch to throw. Reference
+      // behaviour: @noy-db/to-file (found by the conformance suite, #26).
       const target = recordPath(vault, collection, id)
+      if (expectedVersion !== undefined) {
+        const existing = await sftp.readFile(target)
+        if (existing !== null) {
+          const current = (JSON.parse(new TextDecoder().decode(existing)) as EncryptedEnvelope)._v
+          if (current !== expectedVersion) {
+            throw new ConflictError(current, `Version conflict: expected ${expectedVersion}, found ${current}`)
+          }
+        }
+      }
       const tmp = `${target}.tmp`
       await ensureDir(collPath(vault, collection))
       await sftp.writeFile(tmp, JSON.stringify(envelope))

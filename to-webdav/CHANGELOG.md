@@ -1,5 +1,13 @@
 # @noy-db/to-webdav
 
+## 0.3.0-pre.3
+
+### Fix: `loadAll()` leaked internal collections; `expectedVersion` now honored ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
+
+- `loadAll()` returned the vault's own `_keyring`/`_sync` bookkeeping collections inside the snapshot — the store contract requires excluding `_`-prefixed collections (reference: `@noy-db/to-file`).
+- `put()` silently ignored `expectedVersion`; an OBSERVED version mismatch now throws `ConflictError` (best-effort read-then-write; still `casAtomic: false`).
+- Both found by wiring the shared adapter-conformance suite.
+
 ## 0.3.0-pre.1
 
 ### BREAKING: factory renamed to `toWebdav()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))

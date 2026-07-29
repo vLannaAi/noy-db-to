@@ -1,5 +1,11 @@
 # @noy-db/to-smb
 
+## 0.3.0-pre.3
+
+### Fix: `expectedVersion` is now honored (best-effort) ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
+
+- `put()` silently ignored `expectedVersion`, so a stale writer never got a `ConflictError`. Now an OBSERVED version mismatch throws (read-then-write; still `casAtomic: false` — the check is not atomic under a concurrent writer). Reference behaviour: `@noy-db/to-file`. Found by wiring the shared adapter-conformance suite.
+
 ## 0.3.0-pre.1
 
 ### BREAKING: factory renamed to `toSmb()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))

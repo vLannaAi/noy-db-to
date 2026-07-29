@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/to-supabase",
-  "version": "0.3.0-pre.2",
+  "version": "0.3.0-pre.3",
   "description": "Supabase adapter for noy-db — Postgres + Storage combo. Routes records to @noy-db/to-postgres via the Supabase Postgres pool and optional blob routing via Supabase Storage.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
@@ -43,7 +43,8 @@
   "devDependencies": {
     "@noy-db/hub": "0.4.0-pre.10",
     "@noy-db/to-postgres": "workspace:*",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "@noy-db/test-adapter-conformance": "workspace:*"
   },
   "keywords": [
     "noy-db",
