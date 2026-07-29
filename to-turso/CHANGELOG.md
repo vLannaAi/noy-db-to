@@ -1,5 +1,11 @@
 # @noy-db/to-turso
 
+## 0.3.0-pre.2
+
+### Fix: `txAtomic` capability now declared ([#22](https://github.com/vLannaAi/noy-db-to/issues/22))
+
+- `toTurso()` implemented `tx()` but never declared `txAtomic`, so hub consumers gating on the capability bit never routed to it (dead code). Now declared honestly: `true` when the client exposes `batch` (libSQL batches run in one implicit transaction) — including the `clientFactory` path — and `false` for an injected duck-typed client without `batch`, whose sequential fallback is not atomic and is no longer advertised.
+
 ## 0.3.0-pre.1
 
 ### BREAKING: factory renamed to `toTurso()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))
