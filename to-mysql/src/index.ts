@@ -148,6 +148,11 @@ export function toMysql(options: MysqlStoreOptions): NoydbStore {
       )
       const snap: VaultSnapshot = {}
       for (const row of rows) {
+        // Internal collections (`_keyring`, `_sync`) are the vault's own
+        // bookkeeping and must not appear in a snapshot — required by the store
+        // contract, with `@noy-db/to-file` setting the reference behaviour via
+        // the same `_`-prefix rule.
+        if (row.collection.startsWith('_')) continue
         const bucket = snap[row.collection] ?? (snap[row.collection] = {})
         bucket[row.id] = parseEnvelope(row.envelope)
       }

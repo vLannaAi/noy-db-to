@@ -155,6 +155,9 @@ importers:
       '@noy-db/hub':
         specifier: 0.4.0-pre.10
         version: 0.4.0-pre.10
+      '@noy-db/test-adapter-conformance':
+        specifier: workspace:*
+        version: link:../test-support
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0

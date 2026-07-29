@@ -313,6 +313,11 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
       const snap: VaultSnapshot = {}
       for (const row of result.rows) {
         const collection = row.collection as string
+        // Internal collections (`_keyring`, `_sync`) are the vault's own
+        // bookkeeping and must not appear in a snapshot — required by the store
+        // contract, with `@noy-db/to-file` setting the reference behaviour via
+        // the same `_`-prefix rule.
+        if (collection.startsWith('_')) continue
         const id = row.id as string
         const bucket = snap[collection] ?? (snap[collection] = {})
         bucket[id] = rowToEnvelope(row)
