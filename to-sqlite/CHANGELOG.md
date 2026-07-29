@@ -1,5 +1,15 @@
 # @noy-db/to-sqlite
 
+## 0.3.0-pre.1
+
+### BREAKING: factory renamed to `toSqlite()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))
+
+- `sqlite()` → `toSqlite()` — every extended store now exports a `to<Backend>()`-named factory matching the package-prefix grammar. Import sites change; options and behavior are identical.
+
+### Hub 0.4.0 pre line adopted ([#20](https://github.com/vLannaAi/noy-db-to/issues/20))
+
+- `peerDependencies["@noy-db/hub"]` → `^0.3.0 || ^0.4.0-pre.10`, dev pin → `0.4.0-pre.10`. The `@noy-db/hub/to` store contract is byte-identical between hub `0.3.0` and `0.4.0-pre.10` (seam types and runtime verified), so the range spans both lines; the full suite runs against `0.4.0-pre.10`.
+
 ## 0.2.0
 
 ### Hub floor normalized to the first stable

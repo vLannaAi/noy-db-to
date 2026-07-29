@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/test-adapter-conformance",
-  "version": "0.2.1-pre.1",
+  "version": "0.3.0-pre.1",
   "private": true,
   "description": "Parameterized adapter contract tests (vendored, noy-db-to)",
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.3.0",
+    "@noy-db/hub": "0.4.0-pre.10",
     "vitest": "^3.0.0"
   }
 }
