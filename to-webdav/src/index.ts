@@ -30,6 +30,7 @@
  */
 
 import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource } from '@noy-db/hub/to'
+import { ConflictError } from '@noy-db/hub/to'
 
 /** Refresh the cached token this many ms before its `expiresAt`. */
 const TOKEN_REFRESH_SKEW_MS = 30_000
@@ -201,9 +202,18 @@ export function toWebdav(options: WebDAVStoreOptions): NoydbStore {
       return JSON.parse(text) as EncryptedEnvelope
     },
 
-    async put(vault, collection, id, envelope) {
-      // Note: casAtomic:false — expectedVersion is IGNORED. WebDAV
-      // lacks server-side conditional metadata writes.
+    async put(vault, collection, id, envelope, expectedVersion) {
+      // casAtomic: false — WebDAV lacks server-side conditional metadata
+      // writes, so the check below is best-effort read-then-write (not
+      // atomic under a concurrent writer). The contract still requires an
+      // OBSERVED version mismatch to throw — reference behaviour:
+      // @noy-db/to-file (found by the conformance suite, #26).
+      if (expectedVersion !== undefined) {
+        const current = await store.get(vault, collection, id)
+        if (current !== null && current._v !== expectedVersion) {
+          throw new ConflictError(current._v, `Version conflict: expected ${expectedVersion}, found ${current._v}`)
+        }
+      }
       const body = JSON.stringify(envelope)
       // Eager MKCOL: required for non-RFC servers (DriveHQ etc.) that
       // accept PUT-to-nonexistent with 204 and silently flatten.
@@ -252,7 +262,13 @@ export function toWebdav(options: WebDAVStoreOptions): NoydbStore {
         const hrefPath = href.replace(/\/+$/, '')
         if (hrefPath === selfPath) continue
         const segment = hrefPath.slice(selfPath.length + 1).split('/')[0]
-        if (segment) collections.add(decodeURIComponent(segment))
+        if (!segment) continue
+        const collection = decodeURIComponent(segment)
+        // Internal collections (`_keyring`, `_sync`) are the vault's own
+        // bookkeeping and must not appear in a snapshot — store contract,
+        // reference behaviour: @noy-db/to-file (#26).
+        if (collection.startsWith('_')) continue
+        collections.add(collection)
       }
       const snap: VaultSnapshot = {}
       for (const collection of collections) {

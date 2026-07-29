@@ -37,6 +37,7 @@
  */
 
 import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import { ConflictError } from '@noy-db/hub/to'
 
 /**
  * Duck-typed SMB client. Compatible with `smb2` / `@marsaud/smb2`
@@ -119,9 +120,21 @@ export function toSmb(options: SmbStoreOptions): NoydbStore {
       return JSON.parse(decode(bytes)) as EncryptedEnvelope
     },
 
-    async put(vault, collection, id, envelope) {
-      // casAtomic: false — expectedVersion ignored.
+    async put(vault, collection, id, envelope, expectedVersion) {
+      // casAtomic: false — the check below is best-effort read-then-write
+      // (not atomic under a concurrent writer), but the contract still
+      // requires an OBSERVED version mismatch to throw. Reference
+      // behaviour: @noy-db/to-file (found by the conformance suite, #26).
       const target = recordPath(vault, collection, id)
+      if (expectedVersion !== undefined) {
+        const existing = await client.readFile(target)
+        if (existing !== null) {
+          const current = (JSON.parse(new TextDecoder().decode(existing)) as EncryptedEnvelope)._v
+          if (current !== expectedVersion) {
+            throw new ConflictError(current, `Version conflict: expected ${expectedVersion}, found ${current}`)
+          }
+        }
+      }
       const tmp = `${target}.tmp`
       await ensureDir(collPath(vault, collection))
       await client.writeFile(tmp, JSON.stringify(envelope))
