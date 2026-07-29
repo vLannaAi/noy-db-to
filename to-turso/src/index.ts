@@ -250,6 +250,13 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
     name: 'turso',
     capabilities: {
       casAtomic: true,
+      // libSQL `batch()` runs its statements in one implicit transaction
+      // (all-or-nothing), so the atomic-batch capability is honest exactly
+      // when the client exposes `batch`. Factory-built clients are real
+      // `@libsql/client` instances, which always do; an injected duck-typed
+      // client without `batch` falls back to sequential (non-atomic) tx and
+      // must not advertise the bit (#22).
+      txAtomic: staticClient ? typeof staticClient.batch === 'function' : true,
       serverWriteTime: true,
       auth: { kind: 'api-key', required: true, flow: 'static' },
     },
