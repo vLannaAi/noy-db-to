@@ -41,7 +41,7 @@
     "@noy-db/to-postgres": "workspace:*"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.4.0-pre.10",
+    "@noy-db/hub": "0.4.0-pre.11",
     "@noy-db/to-postgres": "workspace:*",
     "@types/node": "^22.0.0",
     "@noy-db/test-adapter-conformance": "workspace:*"
