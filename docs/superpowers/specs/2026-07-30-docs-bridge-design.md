@@ -31,16 +31,16 @@ pattern and adds the missing half: a **machine-readable payload** the docs sync 
 
 ### `scripts/docs-bridge/` — private CI tooling (never published)
 
-**`dump-capabilities.mts`** — constructs each of the 16 stores with the same mock/fake its
-conformance test uses (`to-*/__tests__/_mock.ts` / `_fake-*.ts`, plus `node:sqlite` wrappers for
-turso/d1 and a tmp dir for nfs) and serializes the returned `capabilities` object plus the factory
-name. Runs as a vitest test in the root `scripts` project (`DOCS_BRIDGE_CAPS_OUT` env var triggers
-the file write) — vitest resolves the mocks' `.js → .ts` source imports, which plain Node
-type-stripping cannot; this also removes the `pnpm build` prerequisite and makes the dump double as
-the 16-store drift alarm. The 16-entry wiring table lives in this script. Where capabilities are
-option-dependent (e.g. to-turso's `txAtomic` depends on the client exposing `batch`), the dump
-records the **representative default** (the conformance configuration) and marks the entry
-`optionDependent: true`.
+**Capability dump — `scripts/__tests__/docs-bridge-capabilities.test.ts`** — constructs each of the
+16 stores with the same mock/fake its conformance test uses (`to-*/__tests__/_mock.ts` /
+`_fake-*.ts`, plus `node:sqlite` wrappers for turso/d1 and a tmp dir for nfs) and serializes the
+returned `capabilities` object plus the factory name. Runs as a vitest test in the root `scripts`
+project (`DOCS_BRIDGE_CAPS_OUT` env var triggers the file write) — vitest resolves the mocks'
+`.js → .ts` source imports, which plain Node type-stripping cannot; this also removes the
+`pnpm build` prerequisite and makes the dump double as the 16-store drift alarm. The 16-entry
+wiring table lives in this test file. Where capabilities are option-dependent (e.g. to-turso's
+`txAtomic` depends on the client exposing `batch`), the dump records the **representative default**
+(the conformance configuration) and marks the entry `optionDependent: true`.
 
 **`build-payload.mjs`** — assembles `docs-bridge.json`:
 
@@ -86,11 +86,12 @@ records the **representative default** (the conformance configuration) and marks
 
 After `Publish stores` (same job, so it reuses the resolved dist-tag):
 
-1. `pnpm build` artifacts already exist from the verify/publish steps; run
-   `node --experimental-strip-types scripts/docs-bridge/dump-capabilities.mts > /tmp/caps.json`,
-   then `node scripts/docs-bridge/build-payload.mjs --caps /tmp/caps.json --tag <git-tag>
-   --channel <dist-tag> --run-url <url> > /tmp/docs-bridge.json` (the dist-tag comes from the
-   workflow's existing `Resolve npm dist-tag` step output).
+1. Run `DOCS_BRIDGE_CAPS_OUT=/tmp/caps.json pnpm vitest run
+   scripts/__tests__/docs-bridge-capabilities.test.ts`, then `node
+   scripts/docs-bridge/build-payload.mjs --caps /tmp/caps.json --tag <git-tag> --channel
+   <dist-tag> --run-url <url> > /tmp/docs-bridge.json` (the dist-tag comes from the workflow's
+   existing `Resolve npm dist-tag` step output). The dump imports store source via vitest, so
+   `pnpm install` is the only prerequisite — no `pnpm build` step is needed for this.
 2. `gh release upload <tag> /tmp/docs-bridge.json` — the payload is a **release asset** (stable URL,
    fetchable by tag, no committed file).
 3. Open the issue in noy-db-docs (verbatim noy-db pattern): title
