@@ -300,6 +300,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The capability dump imports each store's SOURCE, but stores that
+      # import a workspace sibling (to-cloudflare-r2 → @noy-db/to-aws-s3,
+      # to-supabase → @noy-db/to-postgres) resolve that sibling through its
+      # exports map into dist/ — so the dump needs built dists on a fresh
+      # runner (first observed: v0.3.0-pre.4 run, "Failed to resolve entry").
+      - name: Build
+        run: pnpm build
+
       - name: Build payload
         run: |
           DOCS_BRIDGE_CAPS_OUT=/tmp/caps.json pnpm vitest run scripts/__tests__/docs-bridge-capabilities.test.ts
