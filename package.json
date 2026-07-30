@@ -1,6 +1,6 @@
 {
   "name": "noy-db-to",
-  "version": "0.3.0-pre.3",
+  "version": "0.3.0-pre.4",
   "private": true,
   "description": "Extended storage adapters for noy-db — the non-essential to-* family (cloud, server, remote-fs), bound to the published @noy-db/hub/to seam.",
   "license": "MIT",

@@ -1,5 +1,11 @@
 # @noy-db/to-cloudflare-d1
 
+## 0.3.0-pre.4
+
+### Test-only: conformance engine wrappers extracted ([#33](https://github.com/vLannaAi/noy-db-to/pull/33))
+
+- The node:sqlite engine wrapper moved from the conformance test into `__tests__/_engine.ts` so the docs-bridge capability dump constructs this store the same way conformance does. No runtime changes.
+
 ## 0.3.0-pre.3
 
 ### Test-only: wired into the shared adapter-conformance suite ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
