@@ -1,5 +1,11 @@
 # Changelog — to-aws-dynamo
 
+## 0.3.0-pre.3
+
+### Test-only: wired into the shared adapter-conformance suite ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
+
+- No runtime changes — lockstep version bump. The store now runs the vendored `@noy-db/test-adapter-conformance` contract in CI.
+
 ## 0.3.0-pre.1
 
 ### BREAKING: factory renamed to `toAwsDynamo()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))

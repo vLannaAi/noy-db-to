@@ -1,5 +1,11 @@
 # @noy-db/to-turso
 
+## 0.3.0-pre.3
+
+### Test-only: wired into the shared adapter-conformance suite ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
+
+- No runtime changes — lockstep version bump. The store now runs the vendored `@noy-db/test-adapter-conformance` contract in CI.
+
 ## 0.3.0-pre.2
 
 ### Fix: `txAtomic` capability now declared ([#22](https://github.com/vLannaAi/noy-db-to/issues/22))

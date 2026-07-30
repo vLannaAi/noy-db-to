@@ -1,5 +1,11 @@
 # @noy-db/to-drive
 
+## 0.3.0-pre.3
+
+### Test-only: wired into the shared adapter-conformance suite ([#26](https://github.com/vLannaAi/noy-db-to/issues/26))
+
+- No runtime changes — lockstep version bump. The store now runs the vendored `@noy-db/test-adapter-conformance` contract in CI. The store is a `NoydbPodStore`, so it conforms through the hub's `wrapPodStore()` — the wrapper defects this surfaced (internal-collection leak in `loadAll`, concurrent-`put()` last-writer-wins) were noy-db#908, fixed in `@noy-db/hub 0.4.0-pre.11`, which is now the dev-test pin (peer range unchanged).
+
 ## 0.3.0-pre.1
 
 ### BREAKING: factory renamed to `toDrive()` ([#18](https://github.com/vLannaAi/noy-db-to/pull/18))
