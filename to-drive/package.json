@@ -40,7 +40,7 @@
     "@noy-db/hub": "^0.3.0 || ^0.4.0-pre.10"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.4.0-pre.10",
+    "@noy-db/hub": "0.4.0-pre.11",
     "@types/node": "^22.0.0",
     "@noy-db/test-adapter-conformance": "workspace:*"
   },
