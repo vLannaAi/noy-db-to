@@ -34,11 +34,13 @@ pattern and adds the missing half: a **machine-readable payload** the docs sync 
 **`dump-capabilities.mts`** — constructs each of the 16 stores with the same mock/fake its
 conformance test uses (`to-*/__tests__/_mock.ts` / `_fake-*.ts`, plus `node:sqlite` wrappers for
 turso/d1 and a tmp dir for nfs) and serializes the returned `capabilities` object plus the factory
-name. Runs under Node 22 `--experimental-strip-types` (the mock files are erasable-syntax TS);
-imports store code from **built `dist/`**, so `pnpm build` is a prerequisite. The 16-entry wiring
-table lives in this script. Where capabilities are option-dependent (e.g. to-turso's `txAtomic`
-depends on the client exposing `batch`), the dump records the **representative default** (the
-conformance configuration) and marks the entry `optionDependent: true`.
+name. Runs as a vitest test in the root `scripts` project (`DOCS_BRIDGE_CAPS_OUT` env var triggers
+the file write) — vitest resolves the mocks' `.js → .ts` source imports, which plain Node
+type-stripping cannot; this also removes the `pnpm build` prerequisite and makes the dump double as
+the 16-store drift alarm. The 16-entry wiring table lives in this script. Where capabilities are
+option-dependent (e.g. to-turso's `txAtomic` depends on the client exposing `batch`), the dump
+records the **representative default** (the conformance configuration) and marks the entry
+`optionDependent: true`.
 
 **`build-payload.mjs`** — assembles `docs-bridge.json`:
 
@@ -58,6 +60,7 @@ conformance configuration) and marks the entry `optionDependent: true`.
       "version": "0.3.0-pre.3",
       "description": "…",             // package.json description
       "factory": "toWebdav",
+      "shape": "record",              // "record" | "vault" — vault (pod) stores carry capabilities: null
       "capabilities": { "casAtomic": false, "auth": { "kind": "api-key", "required": false, "flow": "static" } },
       "optionDependent": false,
       "changeType": "updated",        // added | updated | version-only
@@ -68,11 +71,14 @@ conformance configuration) and marks the entry `optionDependent: true`.
 }
 ```
 
+- `shape`: `"record"` for stores exposing a real `capabilities` object, `"vault"` for pod
+  (bundle) stores, which carry `capabilities: null`.
 - `changelog`: the `## <version>` section extracted verbatim from the store's `CHANGELOG.md`;
   absent section → `changeType: "version-only"` and `changelog: null`.
-- `changeType` (one rule, evaluated in order): `"added"` when the package directory does not exist
-  at the previous release tag; else `"updated"` when the CHANGELOG has a section for this version;
-  else `"version-only"`.
+- `changeType` (one rule, evaluated in order): `"added"` when the package has no npm-published
+  version prior to this release (registry history — the release checkout has no git history at
+  depth 1); else `"updated"` when the CHANGELOG has a section for this version; else
+  `"version-only"`.
 - The payload is **built from the tagged tree** — CHANGELOGs, package.jsons, and dists all at the
   release checkout the workflow already uses.
 
@@ -108,11 +114,14 @@ noy-db already uses; the same PAT may be reused). Until provisioned, the step no
   `ADD` (changeType added), `UPDATE` (updated; changelog markdown attached for the editor),
   `VERSION-ONLY` (bump `sinceVersion` only). Output feeds the existing "present the plan" step of
   the runbook; the runbook's decision gates are unchanged.
-- **Storage capability matrix:** `registry/render-storage-matrix` accepts the bridge's
-  `capabilities` for the 16 extended stores (real constructed objects) in place of hand-maintained
-  registry rows. `features.yaml` remains the registry for prose/features; if bridge capabilities
-  disagree with the registry, the sync **stops at a gate** and reports the divergence — never
-  silently prefers either.
+- **Storage capability matrix:** noy-db-docs already generates the matrix from
+  `registry/scan-to-capabilities.mjs` (a static scan of the sibling noy-db-to checkout), so the
+  bridge does not feed `registry/render-storage-matrix` directly. Instead it integrates as a
+  **runtime-vs-static divergence gate** on that scanner (`--bridge`): the scanner's statically
+  derived capabilities are compared against the bridge's real constructed `capabilities` objects
+  for the 16 extended stores, and if they disagree, the sync **stops at a gate** and reports the
+  divergence — same "never silently prefer either" guarantee as before, with the existing
+  scan-and-render pipeline preserved.
 - `docs.manifest.json` records the last-synced noy-db-to version per channel (existing per-partition
   model; no schema change).
 
