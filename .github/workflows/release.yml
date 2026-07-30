@@ -141,6 +141,8 @@ jobs:
       github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'PUBLISH')
     runs-on: ubuntu-latest
+    outputs:
+      dist_tag: ${{ steps.dist_tag.outputs.tag }}
     permissions:
       contents: read
       id-token: write   # required for npm --provenance
@@ -260,3 +262,81 @@ jobs:
           echo "- npm dist-tag: \`${{ steps.dist_tag.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Provenance: enabled (look for the ✓ on https://www.npmjs.com/package/@noy-db/to-aws-s3)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Docs bridge (spec: docs/superpowers/specs/2026-07-30-docs-bridge-design.md) ──
+  #
+  # Builds the machine-readable release payload (docs-bridge.json), attaches
+  # it to the GitHub Release as an asset, and opens a `doc-sync needed` issue
+  # in noy-db-docs — the same cross-repo pattern noy-db's release.yml uses.
+  #
+  # continue-on-error at the JOB level: a docs-side outage or missing
+  # DOCS_SYNC_TOKEN must never fail a publish that already succeeded.
+  # DOCS_SYNC_TOKEN is a fine-grained PAT with Issues:write on
+  # vLannaAi/noy-db-docs (Settings → Secrets); without it the `gh issue
+  # create` step fails non-zero (unauthenticated) and only this job's
+  # continue-on-error absorbs it (job shows red-but-ignored; publish and
+  # the asset upload are unaffected) — doc-sync is then triggered by hand.
+  docs-bridge:
+    name: Docs bridge payload + notify
+    needs: publish
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write   # gh release upload (asset on THIS repo's release)
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build payload
+        run: |
+          DOCS_BRIDGE_CAPS_OUT=/tmp/caps.json pnpm vitest run scripts/__tests__/docs-bridge-capabilities.test.ts
+          node scripts/docs-bridge/build-payload.mjs \
+            --caps /tmp/caps.json \
+            --tag "${{ github.event.release.tag_name }}" \
+            --channel "${{ needs.publish.outputs.dist_tag }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > /tmp/docs-bridge.json
+          node -e "const p=require('/tmp/docs-bridge.json'); if (p.bridge!==1||!p.packages.length) process.exit(1); console.log('payload ok:', p.packages.length, 'packages')"
+
+      - name: Attach payload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" /tmp/docs-bridge.json --clobber
+
+      - name: Open doc-sync issue in noy-db-docs
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_SYNC_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          CHANNEL="${{ needs.publish.outputs.dist_tag }}"
+          ASSET_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/$TAG/docs-bridge.json"
+          {
+            echo "noy-db-to \`$TAG\` was just published to npm dist-tag \`$CHANNEL\`."
+            echo ""
+            echo "- Machine-readable payload: $ASSET_URL"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Per-store deltas:"
+            node -e "
+              const p = require('/tmp/docs-bridge.json');
+              for (const s of p.packages) console.log('- ' + s.name + ' — ' + s.changeType);
+            "
+            echo ""
+            echo "Run the doc-sync with the bridge: \`node scripts/sync/sync.mjs --partition adapters --bridge <downloaded docs-bridge.json>\` — see docs/doc-sync.md."
+          } > /tmp/doc-sync-issue-body.md
+          gh issue create -R vLannaAi/noy-db-docs \
+            --title "doc-sync needed: noy-db-to $TAG @$CHANNEL" \
+            --body-file /tmp/doc-sync-issue-body.md

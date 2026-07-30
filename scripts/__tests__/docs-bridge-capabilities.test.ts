@@ -1,0 +1,89 @@
+import { describe, it, expect } from 'vitest'
+import { writeFileSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+
+// Minimal localStorage shim — to-browser-local captures the global.
+if (!('localStorage' in globalThis)) {
+  const m = new Map<string, string>()
+  ;(globalThis as Record<string, unknown>).localStorage = {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, String(v)),
+    removeItem: (k: string) => void m.delete(k),
+    clear: () => m.clear(),
+    key: (i: number) => [...m.keys()][i] ?? null,
+    get length() { return m.size },
+  }
+}
+
+import { toAwsDynamo } from '../../to-aws-dynamo/src/index.js'
+import { fakeDynamo } from '../../to-aws-dynamo/__tests__/_fake-dynamo.js'
+import { toAwsS3 } from '../../to-aws-s3/src/index.js'
+import { fakeS3 } from '../../to-aws-s3/__tests__/_fake-s3.js'
+import { toBrowserLocal } from '../../to-browser-local/src/index.js'
+import { toCloudflareD1 } from '../../to-cloudflare-d1/src/index.js'
+import { d1OverNodeSqlite } from '../../to-cloudflare-d1/__tests__/_engine.js'
+import { toCloudflareR2 } from '../../to-cloudflare-r2/src/index.js'
+import { toDrive } from '../../to-drive/src/index.js'
+import { mockDrive } from '../../to-drive/__tests__/_mock.js'
+import { toIcloud } from '../../to-icloud/src/index.js'
+import { mockFs } from '../../to-icloud/__tests__/_mock.js'
+import { toMysql } from '../../to-mysql/src/index.js'
+import { mockClient as mysqlMock } from '../../to-mysql/__tests__/_mock.js'
+import { toNfs, type MountDetector } from '../../to-nfs/src/index.js'
+import { toPostgres } from '../../to-postgres/src/index.js'
+import { mockClient as pgMock } from '../../to-postgres/__tests__/_mock.js'
+import { toSmb } from '../../to-smb/src/index.js'
+import { mockSmb } from '../../to-smb/__tests__/_mock.js'
+import { toSqlite } from '../../to-sqlite/src/index.js'
+import { toSsh } from '../../to-ssh/src/index.js'
+import { mockSftp } from '../../to-ssh/__tests__/_mock.js'
+import { toSupabase } from '../../to-supabase/src/index.js'
+import { toTurso } from '../../to-turso/src/index.js'
+import { libsqlOverNodeSqlite } from '../../to-turso/__tests__/_engine.js'
+import { toWebdav } from '../../to-webdav/src/index.js'
+import { fakeDav } from '../../to-webdav/__tests__/_fake-dav.js'
+
+const cleanDetector: MountDetector = async () => ({ exists: true, fstype: 'nfs4', options: ['rw', 'noac'] })
+
+// The wiring table — one entry per published store. `optionDependent: true`
+// marks capabilities that vary with construction options (recorded value =
+// the conformance/representative configuration).
+const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; optionDependent: boolean; make: () => unknown }> = {
+  'to-aws-dynamo':    { factory: 'toAwsDynamo',    shape: 'record', optionDependent: false, make: () => toAwsDynamo({ table: 't', client: fakeDynamo().client }) },
+  'to-aws-s3':        { factory: 'toAwsS3',        shape: 'record', optionDependent: false, make: () => toAwsS3({ bucket: 'b', client: fakeS3().client }) },
+  'to-browser-local': { factory: 'toBrowserLocal', shape: 'record', optionDependent: false, make: () => toBrowserLocal({ prefix: 'docs-bridge-dump' }) },
+  'to-cloudflare-d1': { factory: 'toCloudflareD1', shape: 'record', optionDependent: false, make: () => toCloudflareD1({ db: d1OverNodeSqlite() }) },
+  'to-cloudflare-r2': { factory: 'toCloudflareR2', shape: 'record', optionDependent: false, make: () => toCloudflareR2({ bucket: 'b', client: fakeS3().client }) },
+  'to-drive':         { factory: 'toDrive',        shape: 'vault',  optionDependent: false, make: () => toDrive({ drive: mockDrive() }) },
+  'to-icloud':        { factory: 'toIcloud',       shape: 'vault',  optionDependent: false, make: () => toIcloud({ folder: '/docs-bridge-dump', fs: mockFs() }) },
+  'to-mysql':         { factory: 'toMysql',        shape: 'record', optionDependent: false, make: () => toMysql({ client: mysqlMock() }) },
+  'to-nfs':           { factory: 'toNfs',          shape: 'record', optionDependent: false, make: () => toNfs({ mountPath: mkdtempSync(join(tmpdir(), 'docs-bridge-nfs-')), mountDetector: cleanDetector }) },
+  'to-postgres':      { factory: 'toPostgres',     shape: 'record', optionDependent: false, make: () => toPostgres({ client: pgMock() }) },
+  'to-smb':           { factory: 'toSmb',          shape: 'record', optionDependent: false, make: () => toSmb({ smb: mockSmb() }) },
+  'to-sqlite':        { factory: 'toSqlite',       shape: 'record', optionDependent: false, make: () => toSqlite({ db: new DatabaseSync(':memory:') }) },
+  'to-ssh':           { factory: 'toSsh',          shape: 'record', optionDependent: false, make: () => toSsh({ sftp: mockSftp(), remotePath: 'noydb' }) },
+  'to-supabase':      { factory: 'toSupabase',     shape: 'record', optionDependent: false, make: () => toSupabase({ client: pgMock() }) },
+  'to-turso':         { factory: 'toTurso',        shape: 'record', optionDependent: true,  make: () => toTurso({ client: libsqlOverNodeSqlite() }) },
+  'to-webdav':        { factory: 'toWebdav',       shape: 'record', optionDependent: false, make: () => toWebdav({ baseUrl: 'https://dump.example.com', fetch: fakeDav().fetch }) },
+}
+
+describe('docs-bridge capability dump', () => {
+  it('constructs all 16 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
+    const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean }> = {}
+    for (const [dir, w] of Object.entries(WIRING)) {
+      const store = w.make() as { capabilities?: object }
+      const capabilities = w.shape === 'record' ? store.capabilities ?? null : null
+      if (w.shape === 'record') {
+        expect(capabilities, `${dir}: record store must expose capabilities`).toBeTruthy()
+      }
+      expect(w.factory).toMatch(/^to[A-Z]/)
+      dump[dir] = { factory: w.factory, shape: w.shape, capabilities, optionDependent: w.optionDependent }
+    }
+    expect(Object.keys(dump)).toHaveLength(16)
+
+    const out = process.env['DOCS_BRIDGE_CAPS_OUT']
+    if (out) writeFileSync(out, JSON.stringify(dump, null, 2) + '\n')
+  })
+})
