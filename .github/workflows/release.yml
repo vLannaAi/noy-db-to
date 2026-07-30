@@ -272,8 +272,10 @@ jobs:
   # continue-on-error at the JOB level: a docs-side outage or missing
   # DOCS_SYNC_TOKEN must never fail a publish that already succeeded.
   # DOCS_SYNC_TOKEN is a fine-grained PAT with Issues:write on
-  # vLannaAi/noy-db-docs (Settings → Secrets); without it the issue step
-  # no-ops and doc-sync is triggered by hand.
+  # vLannaAi/noy-db-docs (Settings → Secrets); without it the `gh issue
+  # create` step fails non-zero (unauthenticated) and only this job's
+  # continue-on-error absorbs it (job shows red-but-ignored; publish and
+  # the asset upload are unaffected) — doc-sync is then triggered by hand.
   docs-bridge:
     name: Docs bridge payload + notify
     needs: publish

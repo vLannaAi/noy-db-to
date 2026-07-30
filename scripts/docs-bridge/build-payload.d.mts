@@ -40,5 +40,11 @@ export interface BridgePayload {
 
 export function buildPayload(opts: BuildPayloadOpts): BridgePayload
 
+/**
+ * True when a failed `npm view` call means the package has never been published
+ * (npm's E404). Any other failure is NOT first-publish.
+ */
+export function isFirstPublishFromError(err: unknown): boolean
+
 /** True when npm knows no version of this package other than the current one. */
 export function npmIsFirstPublish(name: string): boolean

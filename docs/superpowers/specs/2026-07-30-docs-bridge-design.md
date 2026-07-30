@@ -82,9 +82,12 @@ wiring table lives in this test file. Where capabilities are option-dependent (e
 - The payload is **built from the tagged tree** — CHANGELOGs, package.jsons, and dists all at the
   release checkout the workflow already uses.
 
-### `release.yml` — one new post-publish step
+### `release.yml` — new `docs-bridge` job
 
-After `Publish stores` (same job, so it reuses the resolved dist-tag):
+A separate `docs-bridge` job, gated `needs: publish` and `if: github.event_name == 'release'`,
+with its own job-level `continue-on-error: true` and its own `permissions: contents: write`. It
+consumes the resolved dist-tag via `needs.publish.outputs.dist_tag` (the `publish` job exports
+`outputs.dist_tag`):
 
 1. Run `DOCS_BRIDGE_CAPS_OUT=/tmp/caps.json pnpm vitest run
    scripts/__tests__/docs-bridge-capabilities.test.ts`, then `node
@@ -95,13 +98,15 @@ After `Publish stores` (same job, so it reuses the resolved dist-tag):
 2. `gh release upload <tag> /tmp/docs-bridge.json` — the payload is a **release asset** (stable URL,
    fetchable by tag, no committed file).
 3. Open the issue in noy-db-docs (verbatim noy-db pattern): title
-   `doc-sync needed: <tag> @<channel>`, body = human summary (version, channel, run link, per-store
-   one-liners derived from `changeType`) + the asset URL. `continue-on-error: true`; env
+   `doc-sync needed: noy-db-to <tag> @<channel>`, body = human summary (version, channel, run link,
+   per-store one-liners derived from `changeType`) + the asset URL. env
    `GH_TOKEN: ${{ secrets.DOCS_SYNC_TOKEN }}`.
 
 **Provisioning (maintainer, one-time):** a fine-grained PAT with Issues:write on
 `vLannaAi/noy-db-docs` added as `DOCS_SYNC_TOKEN` in noy-db-to's Settings → Secrets (same mechanism
-noy-db already uses; the same PAT may be reused). Until provisioned, the step no-ops.
+noy-db already uses; the same PAT may be reused). Until provisioned, the `gh issue create` step
+fails non-zero (unauthenticated) — only the job-level `continue-on-error: true` absorbs it, so the
+job shows red-but-ignored while `publish` and the asset upload are unaffected.
 
 ## Consumer (noy-db-docs)
 
@@ -133,9 +138,10 @@ noy-db already uses; the same PAT may be reused). Until provisioned, the step no
   section; absent version → null; malformed header → error.
 - Payload builder: fixture tree → schema-complete payload; `changeType` classification covers
   added/updated/version-only.
-- Capability dump: run against the real workspace — asserts 16 entries, each with a non-empty
-  `capabilities` object and a `to<Backend>` factory name (this doubles as a drift alarm: a new
-  17th store fails the count until wired into the dump table).
+- Capability dump: run against the real workspace — asserts 16 entries, each with a `to<Backend>`
+  factory name; record-shaped stores assert a non-null `capabilities` object, vault (pod) stores
+  carry `capabilities: null` (this doubles as a drift alarm: a new 17th store fails the count until
+  wired into the dump table).
 
 **noy-db-docs** (existing `test:sync` node --test):
 - `bridge.mjs` parser against a fixture payload: classification output, schema-version rejection,

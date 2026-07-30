@@ -13,7 +13,10 @@ import { extractSection } from './changelog.mjs'
 
 export function buildPayload({ rootDir, caps, tag, channel, runUrl, isFirstPublish }) {
   const rootPkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8'))
-  const dirs = readdirSync(rootDir).filter(d => d.startsWith('to-')).sort()
+  const dirs = readdirSync(rootDir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name.startsWith('to-'))
+    .map(d => d.name)
+    .sort()
   let hubPeerRange = null
 
   const packages = dirs.map(dir => {
@@ -39,6 +42,16 @@ export function buildPayload({ rootDir, caps, tag, channel, runUrl, isFirstPubli
   }
 }
 
+/**
+ * True when a failed `npm view` call means the package has never been published
+ * (npm's E404). Any other failure (network blip, registry outage, auth error, …)
+ * is NOT first-publish — the caller should rethrow rather than silently guessing.
+ */
+export function isFirstPublishFromError(err) {
+  const text = `${err?.stderr ?? ''}${err?.stdout ?? ''}`.toString()
+  return text.includes('E404')
+}
+
 /** True when npm knows no version of this package other than the current one. */
 export function npmIsFirstPublish(name) {
   try {
@@ -46,8 +59,9 @@ export function npmIsFirstPublish(name) {
     const versions = JSON.parse(out)
     const list = Array.isArray(versions) ? versions : [versions]
     return list.length <= 1
-  } catch {
-    return true // not on the registry at all
+  } catch (err) {
+    if (isFirstPublishFromError(err)) return true // not on the registry at all
+    throw err // transient/other npm failure — fail visibly, don't mislabel
   }
 }
 
