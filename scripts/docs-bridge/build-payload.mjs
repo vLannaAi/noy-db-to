@@ -29,22 +29,28 @@ export function buildPayload({ rootDir, caps, tag, channel, runUrl, isFirstPubli
     const changelog = existsSync(clPath) ? extractSection(readFileSync(clPath, 'utf8'), pkg.version) : null
     const changeType = isFirstPublish(pkg.name) ? 'added' : changelog !== null ? 'updated' : 'version-only'
 
+    // vLannaAi/noy-db#930 — option-dependence is recorded PER BIT: the wiring
+    // table's `conditionalBits` names the capability bits whose value depends
+    // on the injected client/inner store (today: to-turso's txAtomic); the
+    // recorded boolean in `capabilities` stays the default-configuration
+    // value. The store-level `optionDependent` flag stays for backward
+    // compatibility. `conditionalBits` is emitted only when non-empty.
+    const conditionalBits = cap.conditionalBits?.length ? cap.conditionalBits : null
+
     // #39 — explicit per-store txAtomic for noy-db-docs' bridge divergence
     // check, in the scanner's vocabulary (registry/scan-to-capabilities.mjs):
     // true/false = literal declaration (absent key on a record store = false),
-    // 'conditional' = the declaration varies with construction options —
-    // optionDependent is the wiring table's marker for exactly that (today:
-    // to-turso's client-conditional bit; if a store ever becomes
-    // option-dependent on a DIFFERENT capability, this needs a per-bit
-    // marker instead), null = vault (pod) stores, where NoydbStore
-    // capabilities don't apply.
+    // 'conditional' = the declaration varies with construction options
+    // (txAtomic listed in `conditionalBits`), null = vault (pod) stores,
+    // where NoydbStore capabilities don't apply.
     const txAtomic = cap.shape === 'record'
-      ? (cap.optionDependent ? 'conditional' : (cap.capabilities?.txAtomic ?? false))
+      ? (conditionalBits?.includes('txAtomic') ? 'conditional' : (cap.capabilities?.txAtomic ?? false))
       : null
 
     return {
       name: pkg.name, dir, version: pkg.version, description: pkg.description ?? null,
       factory: cap.factory, shape: cap.shape, capabilities: cap.capabilities, txAtomic,
+      ...(conditionalBits ? { conditionalBits } : {}),
       optionDependent: cap.optionDependent, changeType, changelog,
     }
   })

@@ -3,6 +3,8 @@ export interface CapEntry {
   shape: string
   capabilities: Record<string, unknown> | null
   optionDependent: boolean
+  /** Capability bits whose value depends on construction options (vLannaAi/noy-db#930). */
+  conditionalBits?: readonly string[]
 }
 
 export interface BuildPayloadOpts {
@@ -29,6 +31,14 @@ export interface BridgePackageEntry {
    * null for vault (pod) stores.
    */
   txAtomic: boolean | 'conditional' | null
+  /**
+   * Per-bit option-dependence (vLannaAi/noy-db#930): the capability bits whose
+   * value depends on the injected client/inner store; the recorded boolean in
+   * `capabilities` stays the default-configuration value. Present only when
+   * non-empty (omitted, never an empty array). Consumers treat listed bits as
+   * 'conditional' and skip strict divergence comparison on them.
+   */
+  conditionalBits?: readonly string[]
   optionDependent: boolean
   changeType: 'added' | 'updated' | 'version-only'
   changelog: string | null
