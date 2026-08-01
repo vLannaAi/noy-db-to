@@ -255,7 +255,8 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
       // when the client exposes `batch`. Factory-built clients are real
       // `@libsql/client` instances, which always do; an injected duck-typed
       // client without `batch` falls back to sequential (non-atomic) tx and
-      // must not advertise the bit (#22).
+      // must not advertise the bit (#22). The batch path enforces per-op
+      // `expectedVersion` via in-batch guard statements (#37).
       txAtomic: staticClient ? typeof staticClient.batch === 'function' : true,
       serverWriteTime: true,
       auth: { kind: 'api-key', required: true, flow: 'static' },
@@ -390,7 +391,30 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
       await ensureSchema()
       const client = await getClient()
       if (client.batch) {
+        // Guards run FIRST, inside the same atomic batch as the writes: a
+        // conditional UPDATE that matches zero rows cannot abort a libSQL
+        // batch, so each expectedVersion becomes a statement that RAISES
+        // (NOT NULL violation on `v`) exactly when its precondition fails
+        // against the pre-batch state — aborting and rolling back the
+        // entire implicit transaction (#37).
+        //   expectedVersion 0  → row must NOT exist (create-only)
+        //   expectedVersion N  → row must exist at exactly v = N
+        const guarded = ops.filter(op => op.expectedVersion !== undefined)
         const statements: { sql: string; args?: readonly unknown[] }[] = []
+        for (const op of guarded) {
+          const clause = op.expectedVersion === 0
+            ? `EXISTS (SELECT 1 FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?)`
+            : `NOT EXISTS (SELECT 1 FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ? AND v = ?)`
+          const args = op.expectedVersion === 0
+            ? [op.vault, op.collection, op.id]
+            : [op.vault, op.collection, op.id, op.expectedVersion]
+          statements.push({
+            sql:
+              `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data)
+               SELECT '', '', '', NULL, '', '', '' WHERE ${clause}`,
+            args,
+          })
+        }
         for (const op of ops) {
           if (op.type === 'put') {
             if (!op.envelope) throw new Error(`tx put op missing envelope for ${op.id}`)
@@ -412,7 +436,29 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
             })
           }
         }
-        await client.batch(statements)
+        try {
+          await client.batch(statements)
+        } catch (err) {
+          // The batch rolled back. Re-probe each guarded op against the
+          // (restored) pre-batch state; a mismatch identifies the tripped
+          // guard → ConflictError. No mismatch found (e.g. an unrelated
+          // SQL error) → rethrow the original.
+          for (const op of guarded) {
+            const check = await client.execute({
+              sql: `SELECT v FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?`,
+              args: [op.vault, op.collection, op.id],
+            })
+            const row = check.rows[0] as { v: number } | undefined
+            const conflicted = op.expectedVersion === 0 ? row !== undefined : row?.v !== op.expectedVersion
+            if (conflicted) {
+              throw new ConflictError(
+                row?.v ?? 0,
+                `tx version conflict on ${op.collection}/${op.id}: expected ${op.expectedVersion}, found ${row?.v ?? 'no row'}`,
+              )
+            }
+          }
+          throw err
+        }
         return
       }
       // Fallback: no batch API — sequential execute (no atomic guarantee).

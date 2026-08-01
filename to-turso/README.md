@@ -16,6 +16,18 @@ pnpm add @noy-db/hub @noy-db/to-turso
 
 Turso / libSQL adapter for noy-db — edge SQLite with built-in replication. Wraps @libsql/client through a small async shim that speaks the same noy-db store contract as @noy-db/to-sqlite.
 
+## Atomicity (`txAtomic`) depends on the injected client
+
+`capabilities.txAtomic` is declared **conditionally at construction**: libSQL's `batch()`
+runs its statements in one implicit transaction, so the atomic-batch guarantee is honest
+exactly when the client exposes `batch`.
+
+- `client` **with** `batch` (every real `@libsql/client`) → `txAtomic: true`; `tx()` submits
+  one batch with in-batch `expectedVersion` guards — all-or-nothing, mismatch throws `ConflictError`.
+- `client` **without** `batch` (duck-typed injections) → `txAtomic: false`; `tx()` falls back
+  to sequential statements with **no** atomicity guarantee, and the hub will not delegate to it.
+- `clientFactory` path → `true` (factory-built clients are real `@libsql/client` instances).
+
 ## Status
 
 **Pre-release** (`0.1.0-pre.1`). API may change before `1.0`.

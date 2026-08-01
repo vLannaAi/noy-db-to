@@ -2,6 +2,11 @@
 
 ## 0.3.0
 
+### Fix: batch tx() now enforces `expectedVersion` atomically; conditional `txAtomic` documented ([#37](https://github.com/vLannaAi/noy-db-to/issues/37))
+
+- The `client.batch()` path previously ignored `op.expectedVersion` (sibling of #36). Guarded ops now emit in-batch guard statements that abort the whole batch on mismatch → `ConflictError`, zero writes applied. Strict CAS: `expectedVersion: 0` = create-only, `N` = row must exist at `v = N`.
+- README now documents that `txAtomic` is client-conditional: batch-capable client ⇒ atomic; the sequential fallback (batch-less injected client) is non-atomic and does not declare the bit.
+
 ### Hub 0.4.0 stable adopted ([#38](https://github.com/vLannaAi/noy-db-to/issues/38))
 
 - `peerDependencies["@noy-db/hub"]` → `^0.3.0 || ^0.4.0`, dev pin → `0.4.0`. Full conformance re-validated against the published hub 0.4.0 stable (`@latest`), whose `db.transaction(fn)` now genuinely delegates to `store.tx()` on `txAtomic` stores (noy-db#906).
