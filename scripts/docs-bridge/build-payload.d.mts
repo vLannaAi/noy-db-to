@@ -22,6 +22,13 @@ export interface BridgePackageEntry {
   factory: string
   shape: string
   capabilities: Record<string, unknown> | null
+  /**
+   * Per-store txAtomic in the noy-db-docs scanner vocabulary (#39):
+   * literal declaration for record stores (absent key = false),
+   * 'conditional' when the declaration varies with construction options,
+   * null for vault (pod) stores.
+   */
+  txAtomic: boolean | 'conditional' | null
   optionDependent: boolean
   changeType: 'added' | 'updated' | 'version-only'
   changelog: string | null

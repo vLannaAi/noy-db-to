@@ -29,9 +29,22 @@ export function buildPayload({ rootDir, caps, tag, channel, runUrl, isFirstPubli
     const changelog = existsSync(clPath) ? extractSection(readFileSync(clPath, 'utf8'), pkg.version) : null
     const changeType = isFirstPublish(pkg.name) ? 'added' : changelog !== null ? 'updated' : 'version-only'
 
+    // #39 — explicit per-store txAtomic for noy-db-docs' bridge divergence
+    // check, in the scanner's vocabulary (registry/scan-to-capabilities.mjs):
+    // true/false = literal declaration (absent key on a record store = false),
+    // 'conditional' = the declaration varies with construction options —
+    // optionDependent is the wiring table's marker for exactly that (today:
+    // to-turso's client-conditional bit; if a store ever becomes
+    // option-dependent on a DIFFERENT capability, this needs a per-bit
+    // marker instead), null = vault (pod) stores, where NoydbStore
+    // capabilities don't apply.
+    const txAtomic = cap.shape === 'record'
+      ? (cap.optionDependent ? 'conditional' : (cap.capabilities?.txAtomic ?? false))
+      : null
+
     return {
       name: pkg.name, dir, version: pkg.version, description: pkg.description ?? null,
-      factory: cap.factory, shape: cap.shape, capabilities: cap.capabilities,
+      factory: cap.factory, shape: cap.shape, capabilities: cap.capabilities, txAtomic,
       optionDependent: cap.optionDependent, changeType, changelog,
     }
   })
