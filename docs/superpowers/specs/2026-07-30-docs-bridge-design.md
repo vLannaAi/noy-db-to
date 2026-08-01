@@ -62,6 +62,7 @@ wiring table lives in this test file. Where capabilities are option-dependent (e
       "factory": "toWebdav",
       "shape": "record",              // "record" | "vault" — vault (pod) stores carry capabilities: null
       "capabilities": { "casAtomic": false, "auth": { "kind": "api-key", "required": false, "flow": "static" } },
+      "txAtomic": false,              // #39 — true | false | 'conditional' | null, scanner vocabulary (see below)
       "optionDependent": false,
       "changeType": "updated",        // added | updated | version-only
       "changelog": "### Fix: …\n\n- …" // this version's CHANGELOG section, verbatim markdown
@@ -73,6 +74,12 @@ wiring table lives in this test file. Where capabilities are option-dependent (e
 
 - `shape`: `"record"` for stores exposing a real `capabilities` object, `"vault"` for pod
   (bundle) stores, which carry `capabilities: null`.
+- `txAtomic` (#39, additive): per-store atomic-batch bit in noy-db-docs'
+  `registry/scan-to-capabilities.mjs` vocabulary, so their `--bridge` divergence check can compare
+  it directly against the static scan — `true`/`false` for a literal declaration (absent key on a
+  record store = `false`), `'conditional'` when the declaration varies with construction options
+  (the wiring table's `optionDependent` marker; today: to-turso's client-conditional bit), `null`
+  for vault-shaped stores.
 - `changelog`: the `## <version>` section extracted verbatim from the store's `CHANGELOG.md`;
   absent section → `changeType: "version-only"` and `changelog: null`.
 - `changeType` (one rule, evaluated in order): `"added"` when the package has no npm-published
