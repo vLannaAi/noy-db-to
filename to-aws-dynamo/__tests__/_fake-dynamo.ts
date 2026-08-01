@@ -46,6 +46,51 @@ export function fakeDynamo(): { client: DynamoDocClient; items: Map<string, Reco
         items.delete(key(k.pk, k.sk))
         return {}
       }
+      if (name === 'TransactWriteCommand') {
+        // Models TransactWriteItems' contract the store relies on (#41):
+        // ALL ConditionExpressions are evaluated against pre-transaction
+        // state; any failure throws TransactionCanceledException with
+        // per-item CancellationReasons and NOTHING is applied.
+        const entries = input['TransactItems'] as Array<{
+          Put?: { Item: Record<string, unknown>; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> }
+          Delete?: { Key: { pk: string; sk: string }; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> }
+        }>
+        const reasonFor = (entry: (typeof entries)[number]): 'None' | 'ConditionalCheckFailed' => {
+          const leg = entry.Put ?? entry.Delete
+          if (!leg) throw new Error('fake dynamo: transact entry has neither Put nor Delete')
+          const condition = leg.ConditionExpression
+          if (condition === undefined) return 'None'
+          const k = entry.Put
+            ? key(entry.Put.Item['pk'] as string, entry.Put.Item['sk'] as string)
+            : key(entry.Delete!.Key.pk, entry.Delete!.Key.sk)
+          const current = items.get(k)
+          if (condition === 'attribute_not_exists(pk)') {
+            return current ? 'ConditionalCheckFailed' : 'None'
+          }
+          if (condition === '#v = :expected') {
+            const expected = (leg.ExpressionAttributeValues as Record<string, unknown>)[':expected']
+            return current && current['_v'] === expected ? 'None' : 'ConditionalCheckFailed'
+          }
+          throw new Error(`fake dynamo: unmodelled transact ConditionExpression: ${condition}`)
+        }
+        const reasons = entries.map(reasonFor)
+        if (reasons.some(r => r !== 'None')) {
+          const e = new Error('Transaction cancelled, please refer cancellation reasons for specific reasons')
+          e.name = 'TransactionCanceledException'
+          ;(e as Error & { CancellationReasons: Array<{ Code: string }> }).CancellationReasons =
+            reasons.map(r => ({ Code: r }))
+          throw e
+        }
+        for (const entry of entries) {
+          if (entry.Put) {
+            const item = entry.Put.Item
+            items.set(key(item['pk'] as string, item['sk'] as string), item)
+          } else {
+            items.delete(key(entry.Delete!.Key.pk, entry.Delete!.Key.sk))
+          }
+        }
+        return {}
+      }
       if (name === 'QueryCommand') {
         const values = input['ExpressionAttributeValues'] as Record<string, unknown>
         const pk = values[':pk'] as string

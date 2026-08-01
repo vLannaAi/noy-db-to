@@ -27,17 +27,21 @@
  *              "dynamodb:DeleteItem", "dynamodb:Query"] }
  * ```
  *
+ * (`tx()` needs no extra action: `TransactWriteItems` authorizes against the
+ * per-item `dynamodb:PutItem` / `dynamodb:DeleteItem` permissions above.)
+ *
  * ## Capabilities
  *
  * | Capability | Value |
  * |---|---|
  * | `casAtomic` | `true` — DynamoDB `ConditionExpression` on `_v` |
+ * | `txAtomic` | `true` — `TransactWriteItems` with per-item `ConditionExpression` on `_v`; ≤100 ops per batch (over-limit throws, never splits) |
  * | `ping` | ✓ — `DescribeTable` |
  *
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentials, StoreCredentialSource } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentials, StoreCredentialSource, TxOp } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -204,6 +208,10 @@ export function toAwsDynamo(options: DynamoOptions): NoydbStore {
     // verified against real DynamoDB; it would change chunking, not sequencing.)
     capabilities: {
       casAtomic: true,
+      // #41 — tx() below commits via TransactWriteItems (all-or-nothing,
+      // per-item ConditionExpression CAS), so the bit is declared in the
+      // same change (the conformance biconditional enforces the pairing).
+      txAtomic: true,
       auth: { kind: 'iam', required: true, flow: 'static' },
     },
 
@@ -333,6 +341,75 @@ export function toAwsDynamo(options: DynamoOptions): NoydbStore {
         return true
       } catch {
         return false
+      }
+    },
+
+    async tx(ops: readonly TxOp[]) {
+      // TransactWriteItems hard ceiling. Splitting would break atomicity, so
+      // over-limit batches THROW — the hub treats any tx() throw as
+      // nothing-applied, which TransactWriteItems guarantees. (The 4 MB
+      // aggregate request limit surfaces as the SDK's ValidationException.)
+      if (ops.length > 100) {
+        throw new Error(
+          `to-aws-dynamo: tx() batch of ${ops.length} ops exceeds DynamoDB's TransactWriteItems limit of 100 items — ` +
+          `the batch was NOT split (splitting would break atomicity) and nothing was applied`,
+        )
+      }
+      const client = await getClient()
+      const { TransactWriteCommand } = await import('@aws-sdk/lib-dynamodb') as { TransactWriteCommand: new (input: { TransactItems: unknown[] }) => unknown }
+
+      const transactItems = ops.map(op => {
+        // Per-item CAS: expectedVersion 0 = create-only; N = item must exist
+        // at exactly _v = N (a missing item fails `#v = :expected` too).
+        const cond = op.expectedVersion === undefined
+          ? {}
+          : op.expectedVersion === 0
+            ? { ConditionExpression: 'attribute_not_exists(pk)' }
+            : {
+                ConditionExpression: '#v = :expected',
+                ExpressionAttributeNames: { '#v': '_v' },
+                ExpressionAttributeValues: { ':expected': op.expectedVersion },
+              }
+        if (op.type === 'put') {
+          if (!op.envelope) throw new Error(`tx put op missing envelope for ${op.id}`)
+          return {
+            Put: {
+              TableName: table,
+              Item: {
+                pk: op.vault,
+                sk: sk(op.collection, op.id),
+                _v: op.envelope._v,
+                _ts: op.envelope._ts,
+                _env: JSON.stringify(op.envelope),
+              },
+              ...cond,
+            },
+          }
+        }
+        return { Delete: { TableName: table, Key: { pk: op.vault, sk: sk(op.collection, op.id) }, ...cond } }
+      })
+
+      try {
+        await client.send(new TransactWriteCommand({ TransactItems: transactItems }))
+      } catch (err: unknown) {
+        // TransactionCanceledException carries per-item CancellationReasons;
+        // a ConditionalCheckFailed entry pinpoints the conflicting op. The
+        // whole transaction was rejected — nothing was applied.
+        const reasons = (err as { CancellationReasons?: Array<{ Code?: string }> }).CancellationReasons
+        const idx = err instanceof Error && err.name === 'TransactionCanceledException'
+          ? (reasons?.findIndex(r => r.Code === 'ConditionalCheckFailed') ?? -1)
+          : err instanceof Error && err.name === 'ConditionalCheckFailedException'
+            ? ops.findIndex(o => o.expectedVersion !== undefined)
+            : -1
+        if (idx >= 0) {
+          const op = ops[idx]!
+          const current = await this.get(op.vault, op.collection, op.id)
+          throw new ConflictError(
+            current?._v ?? 0,
+            `tx version conflict on ${op.collection}/${op.id}: expected ${op.expectedVersion}, found ${current?._v ?? 'no item'}`,
+          )
+        }
+        throw err
       }
     },
 

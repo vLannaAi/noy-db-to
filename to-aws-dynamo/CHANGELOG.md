@@ -2,6 +2,10 @@
 
 ## 0.3.0
 
+### Feature: atomic tx() via TransactWriteItems ([#41](https://github.com/vLannaAi/noy-db-to/issues/41))
+
+- Implements `NoydbStore.tx()` with DynamoDB `TransactWriteItems` and declares `capabilities.txAtomic: true` — hub 0.4.0's `db.transaction(fn)` now delegates its forward commit here. Per-item `ConditionExpression` enforces `op.expectedVersion` (`attribute_not_exists` for `0`, `#v = :expected` otherwise); `TransactionCanceledException`/`ConditionalCheckFailed` maps to `ConflictError` with nothing applied. Batches over DynamoDB's 100-item transaction ceiling throw a clear error rather than silently splitting (splitting would break atomicity); the 4 MB aggregate limit surfaces as the SDK's `ValidationException`.
+
 ### Hub 0.4.0 stable adopted ([#38](https://github.com/vLannaAi/noy-db-to/issues/38))
 
 - `peerDependencies["@noy-db/hub"]` → `^0.3.0 || ^0.4.0`, dev pin → `0.4.0`. Full conformance re-validated against the published hub 0.4.0 stable (`@latest`), whose `db.transaction(fn)` now genuinely delegates to `store.tx()` on `txAtomic` stores (noy-db#906).
