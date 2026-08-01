@@ -9,7 +9,8 @@ const caps = {
   'to-alpha': { factory: 'toAlpha', shape: 'record', capabilities: { casAtomic: true, txAtomic: true }, optionDependent: false },
   'to-beta':  { factory: 'toBeta',  shape: 'record', capabilities: { casAtomic: false }, optionDependent: false },
   // txAtomic vocabulary edges (#39): option-dependent record store → 'conditional'; vault store → null.
-  'to-gamma-cond':  { factory: 'toGammaCond',  shape: 'record', capabilities: { casAtomic: true, txAtomic: true }, optionDependent: true },
+  // Per-bit marker (vLannaAi/noy-db#930): conditionalBits names the varying bits.
+  'to-gamma-cond':  { factory: 'toGammaCond',  shape: 'record', capabilities: { casAtomic: true, txAtomic: true }, optionDependent: true, conditionalBits: ['txAtomic'] },
   'to-delta-vault': { factory: 'toDeltaVault', shape: 'vault',  capabilities: null, optionDependent: false },
 }
 
@@ -67,8 +68,23 @@ describe('buildPayload', () => {
     const byDir = Object.fromEntries(p.packages.map((x: { dir: string; txAtomic: unknown }) => [x.dir, x.txAtomic]))
     expect(byDir['to-alpha']).toBe(true)                 // declared literal
     expect(byDir['to-beta']).toBe(false)                 // record store, no txAtomic key
-    expect(byDir['to-gamma-cond']).toBe('conditional')   // optionDependent record store
+    expect(byDir['to-gamma-cond']).toBe('conditional')   // txAtomic listed in conditionalBits
     expect(byDir['to-delta-vault']).toBeNull()           // vault (pod) store — n/a
+  })
+
+  it('emits per-bit conditionalBits (vLannaAi/noy-db#930): listed for the option-dependent store, omitted everywhere else', () => {
+    const p = buildPayload({
+      rootDir: root, caps, tag: 'v0.9.0-pre.1', channel: 'next',
+      runUrl: 'u', isFirstPublish: () => false,
+    })
+    const cond = p.packages.find((x: { dir: string }) => x.dir === 'to-gamma-cond')!
+    expect(cond.conditionalBits).toEqual(['txAtomic'])
+    expect(cond.optionDependent).toBe(true)              // store-level flag stays (back-compat)
+    expect(cond.capabilities).toEqual({ casAtomic: true, txAtomic: true }) // recorded default-config value untouched
+    for (const dir of ['to-alpha', 'to-beta', 'to-delta-vault']) {
+      const entry = p.packages.find((x: { dir: string }) => x.dir === dir)! as object
+      expect('conditionalBits' in entry, dir).toBe(false) // omitted, never an empty array
+    }
   })
 
   it('throws when a store directory has no caps entry (wiring drift)', () => {

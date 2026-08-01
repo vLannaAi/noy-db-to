@@ -47,31 +47,34 @@ import { fakeDav } from '../../to-webdav/__tests__/_fake-dav.js'
 
 const cleanDetector: MountDetector = async () => ({ exists: true, fstype: 'nfs4', options: ['rw', 'noac'] })
 
-// The wiring table — one entry per published store. `optionDependent: true`
-// marks capabilities that vary with construction options (recorded value =
-// the conformance/representative configuration).
-const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; optionDependent: boolean; make: () => unknown }> = {
-  'to-aws-dynamo':    { factory: 'toAwsDynamo',    shape: 'record', optionDependent: false, make: () => toAwsDynamo({ table: 't', client: fakeDynamo().client }) },
-  'to-aws-s3':        { factory: 'toAwsS3',        shape: 'record', optionDependent: false, make: () => toAwsS3({ bucket: 'b', client: fakeS3().client }) },
-  'to-browser-local': { factory: 'toBrowserLocal', shape: 'record', optionDependent: false, make: () => toBrowserLocal({ prefix: 'docs-bridge-dump' }) },
-  'to-cloudflare-d1': { factory: 'toCloudflareD1', shape: 'record', optionDependent: false, make: () => toCloudflareD1({ db: d1OverNodeSqlite() }) },
-  'to-cloudflare-r2': { factory: 'toCloudflareR2', shape: 'record', optionDependent: false, make: () => toCloudflareR2({ bucket: 'b', client: fakeS3().client }) },
-  'to-drive':         { factory: 'toDrive',        shape: 'vault',  optionDependent: false, make: () => toDrive({ drive: mockDrive() }) },
-  'to-icloud':        { factory: 'toIcloud',       shape: 'vault',  optionDependent: false, make: () => toIcloud({ folder: '/docs-bridge-dump', fs: mockFs() }) },
-  'to-mysql':         { factory: 'toMysql',        shape: 'record', optionDependent: false, make: () => toMysql({ client: mysqlMock() }) },
-  'to-nfs':           { factory: 'toNfs',          shape: 'record', optionDependent: false, make: () => toNfs({ mountPath: mkdtempSync(join(tmpdir(), 'docs-bridge-nfs-')), mountDetector: cleanDetector }) },
-  'to-postgres':      { factory: 'toPostgres',     shape: 'record', optionDependent: false, make: () => toPostgres({ client: pgMock() }) },
-  'to-smb':           { factory: 'toSmb',          shape: 'record', optionDependent: false, make: () => toSmb({ smb: mockSmb() }) },
-  'to-sqlite':        { factory: 'toSqlite',       shape: 'record', optionDependent: false, make: () => toSqlite({ db: new DatabaseSync(':memory:') }) },
-  'to-ssh':           { factory: 'toSsh',          shape: 'record', optionDependent: false, make: () => toSsh({ sftp: mockSftp(), remotePath: 'noydb' }) },
-  'to-supabase':      { factory: 'toSupabase',     shape: 'record', optionDependent: false, make: () => toSupabase({ client: pgMock() }) },
-  'to-turso':         { factory: 'toTurso',        shape: 'record', optionDependent: true,  make: () => toTurso({ client: libsqlOverNodeSqlite() }) },
-  'to-webdav':        { factory: 'toWebdav',       shape: 'record', optionDependent: false, make: () => toWebdav({ baseUrl: 'https://dump.example.com', fetch: fakeDav().fetch }) },
+// The wiring table — one entry per published store. `conditionalBits` names
+// the individual capability bits that vary with construction options
+// (vLannaAi/noy-db#930; recorded value = the conformance/representative
+// configuration). The dump derives the store-level `optionDependent` flag
+// from it for backward compatibility.
+const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; conditionalBits?: readonly string[]; make: () => unknown }> = {
+  'to-aws-dynamo':    { factory: 'toAwsDynamo',    shape: 'record', make: () => toAwsDynamo({ table: 't', client: fakeDynamo().client }) },
+  'to-aws-s3':        { factory: 'toAwsS3',        shape: 'record', make: () => toAwsS3({ bucket: 'b', client: fakeS3().client }) },
+  'to-browser-local': { factory: 'toBrowserLocal', shape: 'record', make: () => toBrowserLocal({ prefix: 'docs-bridge-dump' }) },
+  'to-cloudflare-d1': { factory: 'toCloudflareD1', shape: 'record', make: () => toCloudflareD1({ db: d1OverNodeSqlite() }) },
+  'to-cloudflare-r2': { factory: 'toCloudflareR2', shape: 'record', make: () => toCloudflareR2({ bucket: 'b', client: fakeS3().client }) },
+  'to-drive':         { factory: 'toDrive',        shape: 'vault',  make: () => toDrive({ drive: mockDrive() }) },
+  'to-icloud':        { factory: 'toIcloud',       shape: 'vault',  make: () => toIcloud({ folder: '/docs-bridge-dump', fs: mockFs() }) },
+  'to-mysql':         { factory: 'toMysql',        shape: 'record', make: () => toMysql({ client: mysqlMock() }) },
+  'to-nfs':           { factory: 'toNfs',          shape: 'record', make: () => toNfs({ mountPath: mkdtempSync(join(tmpdir(), 'docs-bridge-nfs-')), mountDetector: cleanDetector }) },
+  'to-postgres':      { factory: 'toPostgres',     shape: 'record', make: () => toPostgres({ client: pgMock() }) },
+  'to-smb':           { factory: 'toSmb',          shape: 'record', make: () => toSmb({ smb: mockSmb() }) },
+  'to-sqlite':        { factory: 'toSqlite',       shape: 'record', make: () => toSqlite({ db: new DatabaseSync(':memory:') }) },
+  'to-ssh':           { factory: 'toSsh',          shape: 'record', make: () => toSsh({ sftp: mockSftp(), remotePath: 'noydb' }) },
+  'to-supabase':      { factory: 'toSupabase',     shape: 'record', make: () => toSupabase({ client: pgMock() }) },
+  // txAtomic is client-conditional: `staticClient ? typeof staticClient.batch === 'function' : true`
+  'to-turso':         { factory: 'toTurso',        shape: 'record', conditionalBits: ['txAtomic'], make: () => toTurso({ client: libsqlOverNodeSqlite() }) },
+  'to-webdav':        { factory: 'toWebdav',       shape: 'record', make: () => toWebdav({ baseUrl: 'https://dump.example.com', fetch: fakeDav().fetch }) },
 }
 
 describe('docs-bridge capability dump', () => {
   it('constructs all 16 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
-    const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean }> = {}
+    const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean; conditionalBits?: readonly string[] }> = {}
     for (const [dir, w] of Object.entries(WIRING)) {
       const store = w.make() as { capabilities?: object }
       const capabilities = w.shape === 'record' ? store.capabilities ?? null : null
@@ -79,9 +82,22 @@ describe('docs-bridge capability dump', () => {
         expect(capabilities, `${dir}: record store must expose capabilities`).toBeTruthy()
       }
       expect(w.factory).toMatch(/^to[A-Z]/)
-      dump[dir] = { factory: w.factory, shape: w.shape, capabilities, optionDependent: w.optionDependent }
+      dump[dir] = {
+        factory: w.factory, shape: w.shape, capabilities,
+        optionDependent: (w.conditionalBits?.length ?? 0) > 0,
+        ...(w.conditionalBits?.length ? { conditionalBits: w.conditionalBits } : {}),
+      }
     }
     expect(Object.keys(dump)).toHaveLength(16)
+
+    // Per-bit option-dependence (vLannaAi/noy-db#930): to-turso's txAtomic is
+    // the only client-conditional bit today; every other entry omits the field.
+    expect(dump['to-turso']).toMatchObject({ optionDependent: true, conditionalBits: ['txAtomic'] })
+    for (const [dir, entry] of Object.entries(dump)) {
+      if (dir === 'to-turso') continue
+      expect(entry.optionDependent, dir).toBe(false)
+      expect('conditionalBits' in entry, dir).toBe(false)
+    }
 
     const out = process.env['DOCS_BRIDGE_CAPS_OUT']
     if (out) writeFileSync(out, JSON.stringify(dump, null, 2) + '\n')

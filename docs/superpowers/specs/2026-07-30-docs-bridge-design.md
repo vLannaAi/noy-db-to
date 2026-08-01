@@ -40,7 +40,9 @@ project (`DOCS_BRIDGE_CAPS_OUT` env var triggers the file write) — vitest reso
 `pnpm build` prerequisite and makes the dump double as the 16-store drift alarm. The 16-entry
 wiring table lives in this test file. Where capabilities are option-dependent (e.g. to-turso's
 `txAtomic` depends on the client exposing `batch`), the dump records the **representative default**
-(the conformance configuration) and marks the entry `optionDependent: true`.
+(the conformance configuration) and names the varying bits in `conditionalBits`
+(vLannaAi/noy-db#930; per-bit — e.g. `["txAtomic"]` for to-turso), deriving the store-level
+`optionDependent: true` flag from it for backward compatibility.
 
 **`build-payload.mjs`** — assembles `docs-bridge.json`:
 
@@ -63,6 +65,7 @@ wiring table lives in this test file. Where capabilities are option-dependent (e
       "shape": "record",              // "record" | "vault" — vault (pod) stores carry capabilities: null
       "capabilities": { "casAtomic": false, "auth": { "kind": "api-key", "required": false, "flow": "static" } },
       "txAtomic": false,              // #39 — true | false | 'conditional' | null, scanner vocabulary (see below)
+      // "conditionalBits": ["txAtomic"], // noy-db#930 — only on option-dependent stores (see below); omitted otherwise
       "optionDependent": false,
       "changeType": "updated",        // added | updated | version-only
       "changelog": "### Fix: …\n\n- …" // this version's CHANGELOG section, verbatim markdown
@@ -78,8 +81,14 @@ wiring table lives in this test file. Where capabilities are option-dependent (e
   `registry/scan-to-capabilities.mjs` vocabulary, so their `--bridge` divergence check can compare
   it directly against the static scan — `true`/`false` for a literal declaration (absent key on a
   record store = `false`), `'conditional'` when the declaration varies with construction options
-  (the wiring table's `optionDependent` marker; today: to-turso's client-conditional bit), `null`
+  (`txAtomic` listed in `conditionalBits`; today: to-turso's client-conditional bit), `null`
   for vault-shaped stores.
+- `conditionalBits` (vLannaAi/noy-db#930, additive; schema stays `bridge: 1`): the capability
+  bits whose value depends on the injected client/inner store — the recorded boolean in
+  `capabilities` stays the **default-configuration** value. Present only when non-empty
+  (omitted, never an empty array; today only `to-turso: ["txAtomic"]`). Consumers treat listed
+  bits as 'conditional' and skip strict divergence comparison on them. The store-level
+  `optionDependent` flag stays for backward compatibility.
 - `changelog`: the `## <version>` section extracted verbatim from the store's `CHANGELOG.md`;
   absent section → `changeType: "version-only"` and `changelog: null`.
 - `changeType` (one rule, evaluated in order): `"added"` when the package has no npm-published
