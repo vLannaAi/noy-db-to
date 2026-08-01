@@ -11,7 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.4.0-pre.11",
+    "@noy-db/hub": "0.4.0",
     "vitest": "^3.0.0"
   }
 }
