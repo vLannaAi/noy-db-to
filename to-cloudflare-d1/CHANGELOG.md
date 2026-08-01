@@ -2,6 +2,10 @@
 
 ## 0.3.0
 
+### Fix: tx() now enforces `expectedVersion` atomically ([#36](https://github.com/vLannaAi/noy-db-to/issues/36))
+
+- `tx()` previously ignored `op.expectedVersion` entirely — a concurrent writer between the hub's pre-flight and the batch commit was silently clobbered. Every guarded op now emits an in-batch guard statement that aborts the whole `db.batch()` on mismatch (all-or-nothing), and the store rethrows as `ConflictError`. CAS semantics are strict: `expectedVersion: 0` = create-only, `N` = row must exist at exactly `v = N`.
+
 ### Hub 0.4.0 stable adopted ([#38](https://github.com/vLannaAi/noy-db-to/issues/38))
 
 - `peerDependencies["@noy-db/hub"]` → `^0.3.0 || ^0.4.0`, dev pin → `0.4.0`. Full conformance re-validated against the published hub 0.4.0 stable (`@latest`), whose `db.transaction(fn)` now genuinely delegates to `store.tx()` on `txAtomic` stores (noy-db#906).

@@ -22,7 +22,7 @@
  * | Capability  | Value |
  * |-------------|-------|
  * | `casAtomic` | `true` — `UPDATE … WHERE v = ?` inside a D1 batch |
- * | `txAtomic`  | `true` — `D1Database.batch()` is atomic per-session |
+ * | `txAtomic`  | `true` — `D1Database.batch()` is atomic per-session; per-op `expectedVersion` enforced by in-batch guards |
  * | `listPage`  | ✓ — keyset pagination by id |
  * | `ping`      | ✓ — `SELECT 1` |
  *
@@ -281,7 +281,31 @@ export function toCloudflareD1(options: D1StoreOptions): NoydbStore {
 
     async tx(ops: readonly TxOp[]) {
       await ensureSchema()
+      // Guards run FIRST, inside the same atomic batch as the writes: a
+      // conditional UPDATE that matches zero rows cannot abort a D1 batch,
+      // so each expectedVersion becomes a statement that RAISES (NOT NULL
+      // violation on `v`) exactly when its precondition fails against the
+      // pre-batch state — aborting and rolling back the entire batch.
+      //   expectedVersion 0  → row must NOT exist (create-only)
+      //   expectedVersion N  → row must exist at exactly v = N
+      const guarded = ops.filter(op => op.expectedVersion !== undefined)
       const statements: D1PreparedStatement[] = []
+      for (const op of guarded) {
+        const clause = op.expectedVersion === 0
+          ? `EXISTS (SELECT 1 FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?)`
+          : `NOT EXISTS (SELECT 1 FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ? AND v = ?)`
+        const args = op.expectedVersion === 0
+          ? [op.vault, op.collection, op.id]
+          : [op.vault, op.collection, op.id, op.expectedVersion]
+        statements.push(
+          db
+            .prepare(
+              `INSERT INTO ${tableName} (vault, collection, id, v, ts, iv, data)
+               SELECT '', '', '', NULL, '', '', '' WHERE ${clause}`,
+            )
+            .bind(...args),
+        )
+      }
       for (const op of ops) {
         if (op.type === 'put') {
           if (!op.envelope) throw new Error(`tx put op missing envelope for ${op.id}`)
@@ -294,7 +318,28 @@ export function toCloudflareD1(options: D1StoreOptions): NoydbStore {
           )
         }
       }
-      await db.batch(statements)
+      try {
+        await db.batch(statements)
+      } catch (err) {
+        // The batch rolled back. Re-probe each guarded op against the
+        // (restored) pre-batch state; a mismatch identifies the tripped
+        // guard → ConflictError. No mismatch found (e.g. an unrelated SQL
+        // error) → rethrow the original.
+        for (const op of guarded) {
+          const row = await db
+            .prepare(`SELECT v FROM ${tableName} WHERE vault = ? AND collection = ? AND id = ?`)
+            .bind(op.vault, op.collection, op.id)
+            .first<{ v: number }>()
+          const conflicted = op.expectedVersion === 0 ? row !== null : row?.v !== op.expectedVersion
+          if (conflicted) {
+            throw new ConflictError(
+              row?.v ?? 0,
+              `tx version conflict on ${op.collection}/${op.id}: expected ${op.expectedVersion}, found ${row?.v ?? 'no row'}`,
+            )
+          }
+        }
+        throw err
+      }
     },
   }
 
