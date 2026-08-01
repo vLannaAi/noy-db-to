@@ -11,13 +11,31 @@ export interface Row { vault: string; collection: string; id: string; v: number;
 export function mockClient(): MysqlClient & { rowMap: Map<string, Row> } {
   const rowMap = new Map<string, Row>()
   const key = (v: string, c: string, i: string) => `${v}\x00${c}\x00${i}`
+  // Transaction fidelity (mirrors the to-postgres mock): START TRANSACTION
+  // snapshots the map so ROLLBACK actually restores pre-transaction state —
+  // the store's tx() rollback guarantees are only testable against a mock
+  // that models them.
+  let txSnapshot: Map<string, Row> | null = null
 
   async function execute<T>(sql: string, params?: readonly unknown[]): Promise<[T[], unknown]> {
     const normalized = sql.replace(/\s+/g, ' ').trim().toUpperCase()
     const p = params ?? []
 
-    if (normalized.startsWith('CREATE TABLE') || normalized === 'START TRANSACTION' ||
-        normalized === 'COMMIT' || normalized === 'ROLLBACK') {
+    if (normalized.startsWith('CREATE TABLE')) return [[], null]
+    if (normalized === 'START TRANSACTION') {
+      txSnapshot = new Map(rowMap)
+      return [[], null]
+    }
+    if (normalized === 'COMMIT') {
+      txSnapshot = null
+      return [[], null]
+    }
+    if (normalized === 'ROLLBACK') {
+      if (txSnapshot) {
+        rowMap.clear()
+        for (const [k, r] of txSnapshot) rowMap.set(k, r)
+        txSnapshot = null
+      }
       return [[], null]
     }
     if (normalized === 'SELECT 1') return [[{ '1': 1 } as unknown as T], null]
