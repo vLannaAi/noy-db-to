@@ -12,6 +12,8 @@ Part of [**`@noy-db/hub`**](https://www.npmjs.com/package/@noy-db/hub) — the z
 pnpm add @noy-db/hub @noy-db/to-drive
 ```
 
+Requires `@noy-db/hub >= 0.4.0-pre.11`: this store conforms through the hub's `wrapPodStore()`, and concurrent-write correctness lives in that wrapper (fixed in noy-db#908).
+
 ## What it is
 
 Google Drive bundle store for noy-db. Stores the whole vault as a single .noydb file in Drive's hidden appDataFolder; opaque ULID filenames never leak compartment names. Driver-agnostic — bring your own OAuth token.

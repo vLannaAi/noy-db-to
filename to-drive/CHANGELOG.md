@@ -1,5 +1,11 @@
 # @noy-db/to-drive
 
+## Unreleased
+
+### Hub peer floor raised to 0.4.0-pre.11 ([#30](https://github.com/vLannaAi/noy-db-to/issues/30))
+
+- `peerDependencies["@noy-db/hub"]` → `^0.4.0-pre.11` (was `^0.3.0 || ^0.4.0`). This store conforms through the hub's `wrapPodStore()`, which lost concurrent writes and leaked internals in `loadAll()` until hub `0.4.0-pre.11` (noy-db#908) — verified the 0.3.x wrapper carries both defects, so the `^0.3.0` arm is dropped too. Machine-checkable floor instead of a README caveat; the other 14 stores keep `^0.3.0 || ^0.4.0`.
+
 ## 0.3.0
 
 ### Hub 0.4.0 stable adopted ([#38](https://github.com/vLannaAi/noy-db-to/issues/38))
