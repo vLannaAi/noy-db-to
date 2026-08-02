@@ -39,12 +39,12 @@
   "peerDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
-    "@noy-db/hub": "^0.3.0 || ^0.4.0"
+    "@noy-db/hub": "^0.3.0 || ^0.4.0 || ^0.5.0"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
-    "@noy-db/hub": "0.4.0",
+    "@noy-db/hub": "0.5.0",
     "@noy-db/test-adapter-conformance": "workspace:*"
   },
   "keywords": [

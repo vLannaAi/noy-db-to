@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Hub 0.5.0 stable adopted ([#52](https://github.com/vLannaAi/noy-db-to/issues/52))
+
+- `peerDependencies["@noy-db/hub"]` → `^0.4.0-pre.11 || ^0.5.0`, dev pin → `0.5.0`. Full conformance re-validated against the published hub 0.5.0 stable (`@latest`); the `/to` store contract is unchanged. Hub 0.5.0 exports `isConflictError` from its root (noy-db#935), making the store-error identity contract (`name === 'ConflictError'`) load-bearing engine-side — this store already satisfies it via the shared error class.
+
 ### Hub peer floor raised to 0.4.0-pre.11 ([#30](https://github.com/vLannaAi/noy-db-to/issues/30))
 
 - `peerDependencies["@noy-db/hub"]` → `^0.4.0-pre.11` (was `^0.3.0 || ^0.4.0`). This store conforms through the hub's `wrapPodStore()`, which lost concurrent writes and leaked internals in `loadAll()` until hub `0.4.0-pre.11` (noy-db#908) — verified the 0.3.x wrapper carries both defects, so the `^0.3.0` arm is dropped too. Machine-checkable floor instead of a README caveat; the other 14 stores keep `^0.3.0 || ^0.4.0`.
