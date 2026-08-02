@@ -1,6 +1,6 @@
 # @noy-db/to-mysql
 
-## Unreleased
+## 0.3.1
 
 ### Hub 0.5.0 stable adopted ([#52](https://github.com/vLannaAi/noy-db-to/issues/52))
 
