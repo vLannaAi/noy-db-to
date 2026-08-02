@@ -1,5 +1,11 @@
 # Changelog — to-aws-dynamo
 
+## Unreleased
+
+### Hub 0.5.0 stable adopted ([#52](https://github.com/vLannaAi/noy-db-to/issues/52))
+
+- `peerDependencies["@noy-db/hub"]` → `^0.3.0 || ^0.4.0 || ^0.5.0`, dev pin → `0.5.0`. Full conformance re-validated against the published hub 0.5.0 stable (`@latest`); the `/to` store contract is unchanged. Hub 0.5.0 exports `isConflictError` from its root (noy-db#935), making the store-error identity contract (`name === 'ConflictError'`) load-bearing engine-side — this store already satisfies it via the shared error class.
+
 ## 0.3.0
 
 ### Feature: atomic tx() via TransactWriteItems ([#41](https://github.com/vLannaAi/noy-db-to/issues/41))
