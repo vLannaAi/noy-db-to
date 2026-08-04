@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import type { StoreCredentials } from '@noy-db/hub/to'
 import { createStoreLocator } from '@noy-db/hub/to'
 import { runStoreConformanceTests } from '@noy-db/test-adapter-conformance'
 import { registerDynamoStore, dynamoStoreDescriptor } from '../src/index.js'
@@ -32,6 +33,63 @@ describe('to-aws-dynamo — store-locator descriptor (#58)', () => {
   it('an unregistered kind fails resolve loudly', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(dynamoStoreDescriptor({ table: 't' }))).toThrow()
+  })
+
+  describe('credentials path (broker seam #479)', () => {
+    beforeEach(() => {
+      vi.resetModules()
+    })
+
+    it('threads a StoreCredentialSource from resolve() options into the store', async () => {
+      // Capture SDK config to verify credentials function was threaded
+      const capturedConfigs: Record<string, unknown>[] = []
+      vi.doMock('@aws-sdk/client-dynamodb', () => ({
+        DynamoDBClient: class {
+          constructor(config: Record<string, unknown>) {
+            capturedConfigs.push(config)
+          }
+        },
+      }))
+      vi.doMock('@aws-sdk/lib-dynamodb', () => ({
+        DynamoDBDocumentClient: { from: (client: unknown) => client },
+        QueryCommand: class { constructor(public input: unknown) {} },
+      }))
+
+      // Use fresh imports after mocking
+      const { createStoreLocator: createLocator } = await import('@noy-db/hub/to')
+      const { registerDynamoStore: registerStore, dynamoStoreDescriptor: descriptor } = await import('../src/index.js')
+
+      const locator = createLocator()
+      registerStore(locator)
+
+      const creds: StoreCredentials = {
+        kind: 'aws',
+        accessKeyId: 'AKIA_TEST_LOCATOR',
+        secretAccessKey: 'secret',
+        expiresAt: '2026-08-04T12:00:00.000Z',
+      }
+
+      // Resolve WITHOUT binding.client (so SDK path is exercised, not the pre-built shortcut)
+      const store = locator.resolve(descriptor({ table: 'cred-test' }), {
+        credentials: async () => creds,
+      })
+
+      // Force getClient() to build SDK config by calling an operation
+      await (await store).ping().catch(() => {})
+
+      // Verify SDK constructor was called with a credentials function
+      expect(capturedConfigs).toHaveLength(1)
+      const config = capturedConfigs[0]
+      expect(typeof config['credentials']).toBe('function')
+
+      // Verify the credentials function works
+      const resolved = await (config['credentials'] as () => Promise<{ accessKeyId: string; expiration?: Date }>)()
+      expect(resolved.accessKeyId).toBe('AKIA_TEST_LOCATOR')
+      expect(resolved.expiration).toBeInstanceOf(Date)
+
+      vi.doUnmock('@aws-sdk/client-dynamodb')
+      vi.doUnmock('@aws-sdk/lib-dynamodb')
+    })
   })
 })
 
