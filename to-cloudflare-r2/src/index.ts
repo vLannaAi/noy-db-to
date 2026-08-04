@@ -38,7 +38,13 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, StoreCredentialSource } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  StoreCredentialSource,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import type { S3Client, S3ClientConfig } from '@aws-sdk/client-s3'
 import { S3Client as RealS3Client } from '@aws-sdk/client-s3'
 import { toAwsS3, mapAws } from '@noy-db/to-aws-s3'
@@ -148,4 +154,65 @@ export function toCloudflareR2(options: R2Options): NoydbStore {
       auth: { kind: 'api-key', required: true, flow: 'static' },
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class) ──────────────────
+
+/**
+ * Serializable location of an R2 store. `endpoint` is location, not
+ * tuning: it selects which server the store talks to, so it belongs on
+ * the address rather than in `options`.
+ */
+export interface R2Address {
+  readonly bucket: string
+  readonly accountId?: string
+  readonly prefix?: string
+  readonly endpoint?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface R2DescriptorOptions {
+  readonly clockUncertaintyMs?: number
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — a pre-built
+ * `S3Client` (a shared R2-pointed client, a Workers binding, or a test
+ * fake). Never serialized into a pod alongside the descriptor.
+ */
+export interface R2Binding {
+  readonly client?: S3Client
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toCloudflareR2()` store:
+ * `kind: 'cloudflare-r2'`, `class: 'cloud'`. Credentialless by
+ * construction — R2 keys are S3-compatible, so credentials arrive via a
+ * `StoreCredentialSource` yielding `kind: 'aws'` at `resolve()` time.
+ */
+export function r2StoreDescriptor(address: R2Address, options?: R2DescriptorOptions): StoreDescriptor {
+  return { kind: 'cloudflare-r2', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-cloudflare-r2`: reconstructs the same store
+ * `toCloudflareR2()` builds, from a descriptor produced by
+ * {@link r2StoreDescriptor}. `opts.binding` may carry a pre-built client
+ * ({@link R2Binding}), which always wins over `accountId` + credentials.
+ */
+export const r2StoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as R2Address
+  const options = (descriptor.options ?? {}) as R2DescriptorOptions
+  const binding = (opts.binding ?? {}) as R2Binding
+  return toCloudflareR2({
+    ...address,
+    ...options,
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+    ...(binding.client !== undefined && { client: binding.client }),
+  })
+}
+
+/** Registers {@link r2StoreFactory} under the `'cloudflare-r2'` kind on `locator`. */
+export function registerR2Store(locator: StoreLocator): void {
+  locator.register('cloudflare-r2', r2StoreFactory)
 }
