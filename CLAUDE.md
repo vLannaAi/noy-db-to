@@ -32,12 +32,13 @@ pnpm check:architecture
 
 Tests run against the **published** `@noy-db/hub` (ranged peer + exact dev pin), validating the seam
 across the real published-package boundary — the klum-db model. The adapter-conformance kit
-(`@noy-db/test-adapter-conformance`) is **vendored private** in `test-support/` (never published);
-stores consume it via `workspace:*` source resolution.
+(`@noy-db/test-adapter-conformance`) is consumed the same way: a **published** package at an exact
+dev pin, not a vendored copy. It was vendored in `test-support/` until noy-db `0.6.0-pre.1` published
+it (see #19); the drift guard that policed that copy is gone with it.
 
 ## Conventions
 
-- **ESM-only, Node `>=22`.** TDD; each store passes the vendored `@noy-db/test-adapter-conformance` suite (or hand-written tests).
+- **ESM-only, Node `>=22`.** TDD; each store passes the published `@noy-db/test-adapter-conformance` suite (or hand-written tests).
 - **Independent versioning** from noy-db — this repo bumps its own `0.2.0-pre.N` (lockstep across its stores).
 - **Stores see ciphertext only** — no crypto deps; the hub encrypts before any store is called.
 
