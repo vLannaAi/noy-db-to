@@ -42,7 +42,13 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  ListPageResult,
+  StoreCredentialSource,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 export interface RestStoreOptions {
@@ -53,6 +59,14 @@ export interface RestStoreOptions {
    * fail-closed `authorize` expects (typically `{ authorization: 'Bearer …' }`).
    */
   readonly headers?: Record<string, string>
+  /**
+   * Rolling short-lived credentials source (the hub's #479 credential-broker
+   * seam). Must yield `kind: 'token'`; the token becomes
+   * `Authorization: Bearer <token>` and the source is re-invoked on every
+   * request, so an expiring token refreshes without rebuilding the store.
+   * Takes precedence over any `authorization` key in `headers`.
+   */
+  readonly credentials?: StoreCredentialSource
   /** Max ms to wait for any single RPC response. Default 30s. */
   readonly timeoutMs?: number
   /** Custom fetch — defaults to `globalThis.fetch`. */
@@ -75,6 +89,17 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
   const fetchImpl = options.fetch ?? globalThis.fetch
   const rpcUrl = `${options.baseUrl.replace(/\/+$/, '')}/rpc`
 
+  async function authHeader(): Promise<Record<string, string>> {
+    if (!options.credentials) return {}
+    const creds = await options.credentials()
+    if (creds.kind !== 'token') {
+      throw new Error(
+        `to-rest: credentials of kind '${creds.kind}' are not supported — to-rest authenticates with a bearer token (kind: 'token').`,
+      )
+    }
+    return { authorization: `Bearer ${creds.token}` }
+  }
+
   async function call<T>(method: string, args: readonly unknown[]): Promise<T> {
     // JSON has no `undefined`: a trailing optional arg (expectedVersion,
     // cursor, limit) would serialize as `null` and the server would treat
@@ -84,7 +109,7 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
     while (tuple.length > 0 && tuple[tuple.length - 1] === undefined) tuple.pop()
     const res = await fetchImpl(rpcUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', ...headers, ...(await authHeader()) },
       body: JSON.stringify({ method, args: tuple }),
       signal: AbortSignal.timeout(timeoutMs),
     })
