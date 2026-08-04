@@ -20,6 +20,17 @@
  * const db = await createNoydb({ store })
  * ```
  *
+ * For a rolling short-lived token, pass `credentials` (the hub's
+ * credential-broker seam) instead of a static header — it is re-read on
+ * every request and wins over any `authorization` header:
+ *
+ * ```ts
+ * const store = toRest({
+ *   baseUrl: 'https://vault.example.com/api',
+ *   credentials: async () => ({ kind: 'token', token: await mintToken() }),
+ * })
+ * ```
+ *
  * ## Wire contract (server: `@noy-db/in-rest` >= 0.6.0-pre.0)
  *
  * | Server response | Client behavior |
@@ -67,7 +78,17 @@ export interface RestStoreOptions {
    * seam). Must yield `kind: 'token'`; the token becomes
    * `Authorization: Bearer <token>` and the source is re-invoked on every
    * request, so an expiring token refreshes without rebuilding the store.
-   * Takes precedence over any `authorization` key in `headers`.
+   * Takes precedence over any `authorization` key in `headers` —
+   * case-insensitively, so an `Authorization` spelling is overridden too.
+   *
+   * Note the divergence from the other broker consumers: `to-webdav` and
+   * `to-turso` cache the token and re-invoke only inside a refresh-skew
+   * window of `expiresAt`, and the AWS stores hand the source to the SDK,
+   * which memoizes it. `to-rest` does neither — it invokes the source
+   * once per store operation and never consults `expiresAt`. The cost is
+   * real: a broker backed by a remote token endpoint incurs one extra
+   * round-trip per store operation. Wrap such a source in your own cache
+   * if that matters; the store deliberately holds no token state.
    */
   readonly credentials?: StoreCredentialSource
   /** Max ms to wait for any single RPC response. Default 30s. */
@@ -92,6 +113,17 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
   const fetchImpl = options.fetch ?? globalThis.fetch
   const rpcUrl = `${options.baseUrl.replace(/\/+$/, '')}/rpc`
 
+  // HTTP header names are case-insensitive, but object spread only
+  // overrides an IDENTICAL key: a caller-supplied `Authorization` would
+  // survive alongside the broker's `authorization`, and fetch's `Headers`
+  // then APPENDS rather than replaces ("Bearer A, Bearer B"). Lowercasing
+  // every key once before merging makes precedence genuinely
+  // case-insensitive (same for `Content-Type`).
+  const lower = (h: Record<string, string>): Record<string, string> =>
+    Object.fromEntries(Object.entries(h).map(([k, v]) => [k.toLowerCase(), v]))
+
+  const staticHeaders = lower(headers)
+
   async function authHeader(): Promise<Record<string, string>> {
     if (!options.credentials) return {}
     const creds = await options.credentials()
@@ -112,7 +144,7 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
     while (tuple.length > 0 && tuple[tuple.length - 1] === undefined) tuple.pop()
     const res = await fetchImpl(rpcUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers, ...(await authHeader()) },
+      headers: { 'content-type': 'application/json', ...staticHeaders, ...(await authHeader()) },
       body: JSON.stringify({ method, args: tuple }),
       signal: AbortSignal.timeout(timeoutMs),
     })
