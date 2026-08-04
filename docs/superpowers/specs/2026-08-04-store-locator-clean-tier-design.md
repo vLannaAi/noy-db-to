@@ -93,7 +93,7 @@ exactly two authentication paths: `credentials` (the broker seam) or `client` (i
 always wins).
 
 Rationale: the descriptor path cannot offer the plaintext pair without violating the
-credentialless rule, so leaving it on `toR2()` would mean two auth stories diverging by
+credentialless rule, so leaving it on `toCloudflareR2()` would mean two auth stories diverging by
 construction path — and the plaintext pair is the one at odds with the family's
 zero-knowledge posture.
 
@@ -101,10 +101,10 @@ zero-knowledge posture.
 
 ```ts
 // before
-toR2({ bucket, accountId, accessKeyId, secretAccessKey })
+toCloudflareR2({ bucket, accountId, accessKeyId, secretAccessKey })
 
 // after
-toR2({ bucket, accountId, credentials: async () => ({
+toCloudflareR2({ bucket, accountId, credentials: async () => ({
   kind: 'aws', accessKeyId, secretAccessKey,
 }) })
 ```
