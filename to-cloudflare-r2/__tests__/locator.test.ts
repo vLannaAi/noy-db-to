@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
+import type { StoreCredentials } from '@noy-db/hub/to'
 import { createStoreLocator } from '@noy-db/hub/to'
 import { runStoreConformanceTests } from '@noy-db/test-adapter-conformance'
 import { registerR2Store, r2StoreDescriptor } from '../src/index.js'
@@ -35,6 +36,50 @@ describe('to-cloudflare-r2 — store-locator descriptor (#58)', () => {
   it('an unregistered kind fails resolve loudly', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(r2StoreDescriptor({ bucket: 'b', accountId: 'acc' }))).toThrow()
+  })
+})
+
+// Coverage for credentials path: when opts.credentials is supplied to
+// locator.resolve(), it must thread through to the S3Client construction.
+describe('to-cloudflare-r2 — descriptor + credentials threading (#58)', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('credentials source passed to resolve() threads through to S3Client config', async () => {
+    const capturedConfigs: Record<string, unknown>[] = []
+    const ROLLING_CREDS: StoreCredentials = {
+      kind: 'aws',
+      accessKeyId: 'R2_TEST_KEY',
+      secretAccessKey: 'R2_TEST_SECRET',
+      expiresAt: '2026-07-20T12:00:00.000Z',
+    }
+
+    vi.doMock('@aws-sdk/client-s3', () => ({
+      S3Client: class {
+        constructor(config: Record<string, unknown>) {
+          capturedConfigs.push(config)
+        }
+      },
+    }))
+
+    const { registerR2Store: regR2, r2StoreDescriptor: r2Desc } = await import('../src/index.js')
+    const locator = createStoreLocator()
+    regR2(locator)
+    const descriptor = r2Desc({ bucket: 'cred-test', accountId: 'acc' })
+
+    // Resolve with credentials source but NO binding.client, forcing the
+    // S3Client construction path to run.
+    await locator.resolve(descriptor, {
+      credentials: async () => ROLLING_CREDS,
+    })
+
+    expect(capturedConfigs).toHaveLength(1)
+    const config = capturedConfigs[0]
+    // Prove credentials is a function (not static keys).
+    expect(typeof config['credentials']).toBe('function')
+
+    vi.doUnmock('@aws-sdk/client-s3')
   })
 })
 
