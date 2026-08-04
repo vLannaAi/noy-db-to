@@ -39,6 +39,8 @@ import { mockSmb } from '../../to-smb/__tests__/_mock.js'
 import { toSqlite } from '../../to-sqlite/src/index.js'
 import { toSsh } from '../../to-ssh/src/index.js'
 import { mockSftp } from '../../to-ssh/__tests__/_mock.js'
+import { toRest } from '../../to-rest/src/index.js'
+import { restHarness } from '../../to-rest/__tests__/_harness.js'
 import { toSupabase } from '../../to-supabase/src/index.js'
 import { toTurso } from '../../to-turso/src/index.js'
 import { libsqlOverNodeSqlite } from '../../to-turso/__tests__/_engine.js'
@@ -63,6 +65,7 @@ const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; condi
   'to-mysql':         { factory: 'toMysql',        shape: 'record', make: () => toMysql({ client: mysqlMock() }) },
   'to-nfs':           { factory: 'toNfs',          shape: 'record', make: () => toNfs({ mountPath: mkdtempSync(join(tmpdir(), 'docs-bridge-nfs-')), mountDetector: cleanDetector }) },
   'to-postgres':      { factory: 'toPostgres',     shape: 'record', make: () => toPostgres({ client: pgMock() }) },
+  'to-rest':          { factory: 'toRest',         shape: 'record', make: () => toRest({ baseUrl: 'https://dump.example.com', headers: { authorization: 'Bearer test-key' }, fetch: restHarness().fetch }) },
   'to-smb':           { factory: 'toSmb',          shape: 'record', make: () => toSmb({ smb: mockSmb() }) },
   'to-sqlite':        { factory: 'toSqlite',       shape: 'record', make: () => toSqlite({ db: new DatabaseSync(':memory:') }) },
   'to-ssh':           { factory: 'toSsh',          shape: 'record', make: () => toSsh({ sftp: mockSftp(), remotePath: 'noydb' }) },
@@ -73,7 +76,7 @@ const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; condi
 }
 
 describe('docs-bridge capability dump', () => {
-  it('constructs all 16 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
+  it('constructs all 17 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
     const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean; conditionalBits?: readonly string[] }> = {}
     for (const [dir, w] of Object.entries(WIRING)) {
       const store = w.make() as { capabilities?: object }
@@ -88,7 +91,7 @@ describe('docs-bridge capability dump', () => {
         ...(w.conditionalBits?.length ? { conditionalBits: w.conditionalBits } : {}),
       }
     }
-    expect(Object.keys(dump)).toHaveLength(16)
+    expect(Object.keys(dump)).toHaveLength(17)
 
     // Per-bit option-dependence (vLannaAi/noy-db#930): to-turso's txAtomic is
     // the only client-conditional bit today; every other entry omits the field.

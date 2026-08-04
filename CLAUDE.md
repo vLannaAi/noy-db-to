@@ -8,7 +8,8 @@
 
 `noy-db-to` holds the **non-essential storage adapters** for noy-db — the cloud / server /
 remote-filesystem `to-*` family. The essential, default stores (`to-memory`, `to-file`,
-`to-browser-idb`, `to-probe`, `to-meter`) live in `noy-db`; everything else lives here. Every
+`to-browser-idb`, `to-meter` — probe tooling ships inside `to-meter`) live in `noy-db`;
+everything else lives here. Every
 adapter is a thin, ciphertext-only `NoydbStore` (or `NoydbPodStore`) implementation.
 
 ## Architecture boundary — ONE WAY, via the published seam
