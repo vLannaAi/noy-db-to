@@ -48,6 +48,9 @@ import type {
   VaultSnapshot,
   ListPageResult,
   StoreCredentialSource,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
 } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
@@ -199,4 +202,63 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
       // No persistent connection today — reserved for keep-alive teardown.
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class) ──────────────────
+
+/** Serializable location of a rest store: the in-rest handler's base URL. */
+export interface RestAddress {
+  readonly baseUrl: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface RestDescriptorOptions {
+  readonly timeoutMs?: number
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time. Both fields are
+ * barred from the descriptor: `fetch` is a function, and `headers` is
+ * where an `authorization` value would otherwise leak. Auth belongs on
+ * `credentials`; `headers` here is for non-auth headers such as tenant
+ * routing or tracing.
+ */
+export interface RestBinding {
+  readonly fetch?: typeof fetch
+  readonly headers?: Record<string, string>
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toRest()` store:
+ * `kind: 'rest'`, `class: 'cloud'`. Credentialless by construction — the
+ * bearer token arrives via a `StoreCredentialSource` of `kind: 'token'`
+ * at `resolve()` time and is re-read on every request.
+ */
+export function restStoreDescriptor(address: RestAddress, options?: RestDescriptorOptions): StoreDescriptor {
+  return { kind: 'rest', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-rest`: reconstructs the same store `toRest()`
+ * builds, from a descriptor produced by {@link restStoreDescriptor}.
+ * `opts.binding` supplies the transport ({@link RestBinding});
+ * `opts.credentials` supplies auth, which wins over any `authorization`
+ * key in `binding.headers`.
+ */
+export const restStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as RestAddress
+  const options = (descriptor.options ?? {}) as RestDescriptorOptions
+  const binding = (opts.binding ?? {}) as RestBinding
+  return toRest({
+    ...address,
+    ...options,
+    ...(binding.headers !== undefined && { headers: binding.headers }),
+    ...(binding.fetch !== undefined && { fetch: binding.fetch }),
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+  })
+}
+
+/** Registers {@link restStoreFactory} under the `'rest'` kind on `locator`. */
+export function registerRestStore(locator: StoreLocator): void {
+  locator.register('rest', restStoreFactory)
 }
