@@ -12,8 +12,21 @@ import type { RestRequest } from '@noy-db/in-rest'
  *
  * Auth: the handler authorizes exactly `Authorization: Bearer test-key`,
  * matching in-rest's fail-closed model.
+ *
+ * `requests` records every dispatched request with its headers EXACTLY as
+ * the client wrote them (no key normalization) — the handler needs
+ * lowercased keys, but tests asserting header assembly must see the raw
+ * wire form, otherwise a duplicate `Authorization`/`authorization` pair
+ * collapses before the assertion can catch it.
  */
-export function restHarness(): { fetch: typeof fetch; backing: NoydbStore } {
+export interface CapturedRequest {
+  readonly url: string
+  readonly method: string
+  readonly headers: Record<string, string>
+  readonly body: string | undefined
+}
+
+export function restHarness(): { fetch: typeof fetch; backing: NoydbStore; requests: CapturedRequest[] } {
   // vault -> collection -> id -> envelope
   const data = new Map<string, Map<string, Map<string, EncryptedEnvelope>>>()
 
@@ -94,10 +107,19 @@ export function restHarness(): { fetch: typeof fetch; backing: NoydbStore } {
     authorize: req => req.headers['authorization'] === 'Bearer test-key',
   })
 
+  const requests: CapturedRequest[] = []
+
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const rawHeaders = { ...((init?.headers ?? {}) as Record<string, string>) }
+    requests.push({
+      url: url.href,
+      method: init?.method ?? 'GET',
+      headers: rawHeaders,
+      body: init?.body === undefined ? undefined : String(init.body),
+    })
     const headers: Record<string, string> = {}
-    for (const [k, v] of Object.entries((init?.headers ?? {}) as Record<string, string>)) {
+    for (const [k, v] of Object.entries(rawHeaders)) {
       headers[k.toLowerCase()] = v
     }
     const req: RestRequest = {
@@ -115,5 +137,5 @@ export function restHarness(): { fetch: typeof fetch; backing: NoydbStore } {
     }
   }) as unknown as typeof fetch
 
-  return { fetch: fetchImpl, backing }
+  return { fetch: fetchImpl, backing, requests }
 }

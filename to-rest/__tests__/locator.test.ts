@@ -36,13 +36,22 @@ describe('to-rest — store-locator descriptor (#58)', () => {
   it('carries non-auth headers through the binding slot', async () => {
     const locator = createStoreLocator()
     registerRestStore(locator)
+    const harness = restHarness()
     const store = await locator.resolve(restStoreDescriptor({ baseUrl: 'https://vault.example.com' }), {
-      binding: { fetch: restHarness().fetch, headers: { 'x-tenant': 'acme' } },
+      binding: { fetch: harness.fetch, headers: { 'x-tenant': 'acme' } },
       credentials: async () => ({ kind: 'token', token: 'test-key' }),
     })
     const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
     await store.put('v', 'c', 'a', envelope)
     expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+
+    // The routing header must actually reach the wire, on every request —
+    // a round-trip alone would stay green if the factory dropped it.
+    expect(harness.requests).toHaveLength(2)
+    for (const req of harness.requests) {
+      expect(req.headers['x-tenant']).toBe('acme')
+      expect(req.headers['authorization']).toBe('Bearer test-key')
+    }
   })
 
   it('an unregistered kind fails resolve loudly', () => {
