@@ -276,10 +276,28 @@ jobs:
   # create` step fails non-zero (unauthenticated) and only this job's
   # continue-on-error absorbs it (job shows red-but-ignored; publish and
   # the asset upload are unaffected) — doc-sync is then triggered by hand.
+  #
+  # STABLE ONLY. A pre-release publishes to npm but does not open a doc-sync
+  # issue or emit a payload.
+  #
+  # The docs site documents the `@latest` channel; nothing consumes the docs
+  # for an individual `@next` pre-release, and `@latest` eventually subsumes
+  # every pre-release on the line. Filing one issue per pre.N produced a
+  # queue nobody could clear, each issue carrying a package list but no
+  # semantic delta — a pre-release's CHANGELOG section is thin, or absent
+  # entirely for a version-only bump, so `changeType` degrades to
+  # "version-only" and the payload says nothing a reader can act on.
+  #
+  # Gating on the stable cut concentrates the signal rather than losing it:
+  # the stable release's CHANGELOG section covers everything accumulated
+  # across the pre line, so its payload carries the cumulative delta.
+  #
+  # noy-db/.github/workflows/release.yml gates its equivalent job the same
+  # way — keep the two in step.
   docs-bridge:
     name: Docs bridge payload + notify
     needs: publish
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && needs.publish.outputs.dist_tag == 'latest'
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
