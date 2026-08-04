@@ -32,7 +32,14 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -348,4 +355,46 @@ function createLocalStorageAdapter(prefix: string, obfuscate: boolean, obfKey: s
       }
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `browser`-class citizen) ────────
+
+/** Serializable location of a localStorage store: just the key prefix. */
+export interface BrowserLocalAddress {
+  readonly prefix?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface BrowserLocalDescriptorOptions {
+  readonly obfuscate?: boolean
+  readonly clockUncertaintyMs?: number
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toBrowserLocal()` store:
+ * `kind: 'browser-local'`, `class: 'browser'`. Credentialless by
+ * construction — localStorage needs no credentials at all, so this store
+ * ignores both `binding` and `credentials` at resolve time.
+ */
+export function browserLocalStoreDescriptor(
+  address: BrowserLocalAddress = {},
+  options?: BrowserLocalDescriptorOptions,
+): StoreDescriptor {
+  return { kind: 'browser-local', class: 'browser', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-browser-local`: reconstructs the same store
+ * `toBrowserLocal()` builds, from a descriptor produced by
+ * {@link browserLocalStoreDescriptor}.
+ */
+export const browserLocalStoreFactory: StoreFactory = (descriptor) => {
+  const address = descriptor.address as BrowserLocalAddress
+  const options = (descriptor.options ?? {}) as BrowserLocalDescriptorOptions
+  return toBrowserLocal({ ...address, ...options })
+}
+
+/** Registers {@link browserLocalStoreFactory} under the `'browser-local'` kind on `locator`. */
+export function registerBrowserLocalStore(locator: StoreLocator): void {
+  locator.register('browser-local', browserLocalStoreFactory)
 }
