@@ -29,7 +29,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /** Refresh the cached token this many ms before its `expiresAt`. */
@@ -306,4 +306,65 @@ export function toWebdav(options: WebDAVStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#56 / noy-db#945 — `lan`-class model citizen) ──
+
+/** Serializable location of a WebDAV store: the endpoint + path prefix. */
+export interface WebdavAddress {
+  readonly baseUrl: string
+  readonly prefix?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface WebdavDescriptorOptions {
+  readonly autoMkcol?: boolean
+  readonly eagerMkcol?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — a transport
+ * override (custom fetch wrapper injecting session auth, or a test fake)
+ * and/or static headers. Never serialized into a pod alongside the
+ * descriptor.
+ */
+export interface WebdavBinding {
+  readonly fetch?: typeof fetch
+  readonly headers?: Record<string, string>
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toWebdav()` store:
+ * `kind: 'webdav'`, `class: 'lan'`, with the endpoint address and the
+ * serializable server-quirk flags as `options`. Credentialless by
+ * construction — auth arrives via `StoreCredentialSource` at
+ * `resolve()` time, or via a `binding` fetch/headers override.
+ */
+export function webdavStoreDescriptor(address: WebdavAddress, options?: WebdavDescriptorOptions): StoreDescriptor {
+  return { kind: 'webdav', class: 'lan', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-webdav`: reconstructs the same store
+ * `toWebdav()` builds, from a descriptor produced by
+ * {@link webdavStoreDescriptor}. `opts.credentials` becomes the store's
+ * rolling-token source; `opts.binding` may carry a device-local
+ * transport override ({@link WebdavBinding}).
+ */
+export const webdavStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as WebdavAddress
+  const options = (descriptor.options ?? {}) as WebdavDescriptorOptions
+  const binding = (opts.binding ?? {}) as WebdavBinding
+  return toWebdav({
+    ...address,
+    ...options,
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+    ...(binding.fetch !== undefined && { fetch: binding.fetch }),
+    ...(binding.headers !== undefined && { headers: binding.headers }),
+  })
+}
+
+/** Registers {@link webdavStoreFactory} under the `'webdav'` kind on `locator`. */
+export function registerWebdavStore(locator: StoreLocator): void {
+  locator.register('webdav', webdavStoreFactory)
 }

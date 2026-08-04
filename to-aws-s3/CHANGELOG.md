@@ -1,5 +1,12 @@
 # Changelog — to-aws-s3
 
+## 0.4.0
+
+### Store-locator descriptor adopted ([#56](https://github.com/vLannaAi/noy-db-to/issues/56), noy-db#945 first slice)
+
+- New `s3StoreDescriptor()` / `s3StoreFactory` / `registerS3Store()` — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'aws-s3'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. Credentials arrive via `StoreCredentialSource` at `resolve()` time; device-local transport overrides (a pre-built S3Client) ride the `binding` slot. Verified by a descriptor→resolve→full-conformance round-trip.
+- Hub peer range widened to admit `^0.6.0-pre.0` (the locator seam's first release); dev pin → `0.6.0-pre.0`.
+
 ## 0.3.1
 
 ### Hub 0.5.0 stable adopted ([#52](https://github.com/vLannaAi/noy-db-to/issues/52))

@@ -30,7 +30,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource } from '@noy-db/hub/to'
+import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentialSource, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 import {
   S3Client,
@@ -369,3 +369,61 @@ export { s3Bundle } from './bundle.js'
 export type { S3BundleOptions } from './bundle.js'
 export { mapAws } from './credentials.js'
 export type { AwsCredentialIdentityLike } from './credentials.js'
+
+// ─── Store-locator descriptor (#56 / noy-db#945 — `cloud`-class reference) ──
+
+/** Serializable location of an S3 store: bucket + region + key prefix. */
+export interface S3Address {
+  readonly bucket: string
+  readonly region?: string
+  readonly prefix?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface S3DescriptorOptions {
+  readonly clockUncertaintyMs?: number
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — a pre-built
+ * `S3Client` (shared client, custom middleware, or a test fake). Never
+ * serialized into a pod alongside the descriptor.
+ */
+export interface S3Binding {
+  readonly client?: S3Client
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toAwsS3()` store:
+ * `kind: 'aws-s3'`, `class: 'cloud'`. Credentialless by construction —
+ * AWS credentials arrive via `StoreCredentialSource` at `resolve()`
+ * time (the #479 broker seam), or implicitly via the SDK's default
+ * provider chain on the device.
+ */
+export function s3StoreDescriptor(address: S3Address, options?: S3DescriptorOptions): StoreDescriptor {
+  return { kind: 'aws-s3', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-aws-s3`: reconstructs the same store
+ * `toAwsS3()` builds, from a descriptor produced by
+ * {@link s3StoreDescriptor}. `opts.credentials` becomes the SDK's
+ * credential provider; `opts.binding` may carry a pre-built client
+ * ({@link S3Binding}), which always wins over region/credentials.
+ */
+export const s3StoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as S3Address
+  const options = (descriptor.options ?? {}) as S3DescriptorOptions
+  const binding = (opts.binding ?? {}) as S3Binding
+  return toAwsS3({
+    ...address,
+    ...options,
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+    ...(binding.client !== undefined && { client: binding.client }),
+  })
+}
+
+/** Registers {@link s3StoreFactory} under the `'aws-s3'` kind on `locator`. */
+export function registerS3Store(locator: StoreLocator): void {
+  locator.register('aws-s3', s3StoreFactory)
+}
