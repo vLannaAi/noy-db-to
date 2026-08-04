@@ -29,12 +29,17 @@ describe('@noy-db/to-cloudflare-r2', () => {
 
   it('requires accountId when no client is supplied', () => {
     expect(() =>
-      toCloudflareR2({ bucket: 'b', accessKeyId: 'k', secretAccessKey: 's' }),
+      toCloudflareR2({
+        bucket: 'b',
+        credentials: async () => ({ kind: 'aws', accessKeyId: 'k', secretAccessKey: 's' }),
+      }),
     ).toThrow(/client.*accountId/i)
   })
 
   it('requires credentials when accountId is supplied without a client', () => {
-    expect(() => toCloudflareR2({ accountId: 'acc', bucket: 'b' })).toThrow(/accessKeyId.*secretAccessKey/)
+    expect(() => toCloudflareR2({ accountId: 'acc', bucket: 'b' })).toThrow(
+      /`credentials` source or a pre-built `client`/,
+    )
   })
 
   it('accepts a pre-built client and exposes store.name = "cloudflare-r2"', () => {
@@ -50,8 +55,7 @@ describe('@noy-db/to-cloudflare-r2', () => {
     const store = toCloudflareR2({
       accountId: 'acc',
       bucket: 'b',
-      accessKeyId: 'k',
-      secretAccessKey: 's',
+      credentials: async () => ({ kind: 'aws', accessKeyId: 'k', secretAccessKey: 's' }),
     })
     expect(store.name).toBe('cloudflare-r2')
   })

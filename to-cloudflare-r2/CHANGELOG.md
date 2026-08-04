@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### BREAKING: `accessKeyId` / `secretAccessKey` removed from `toCloudflareR2()` ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+Authentication now has exactly two paths: a `credentials` source (the credential-broker seam) or a pre-built `client`. The plaintext pair could not be offered on the store-locator descriptor path without breaking the credentialless-by-construction rule, and keeping it on the direct path would have split authentication into two stories that diverge by construction method.
+
+Migration — wrap existing static keys:
+
+```ts
+// before
+toCloudflareR2({ bucket, accountId, accessKeyId, secretAccessKey })
+
+// after
+toCloudflareR2({ bucket, accountId, credentials: async () => ({
+  kind: 'aws', accessKeyId, secretAccessKey,
+}) })
+```
+
 ### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
 
 - New `r2StoreDescriptor()` / `r2StoreFactory` / `registerR2Store()` — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'cloudflare-r2'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. R2 keys are S3-compatible, so credentials arrive via a `StoreCredentialSource` of `kind: 'aws'` at `resolve()` time; a device-local pre-built `S3Client` (a shared R2-pointed client, a Workers binding, or a test fake) rides the `binding` slot and wins over `accountId` + credentials. `endpoint` sits on the `address` because it is location rather than tuning — note it supplements `accountId` rather than replacing it. Verified by a descriptor→resolve→full-conformance round-trip.

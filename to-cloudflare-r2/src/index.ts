@@ -26,8 +26,11 @@
  * const store = toCloudflareR2({
  *   accountId: 'abc123…',       // Cloudflare dashboard → R2 → account id
  *   bucket: 'my-noydb-bucket',
- *   accessKeyId: process.env.R2_ACCESS_KEY_ID!,
- *   secretAccessKey: process.env.R2_SECRET!,
+ *   credentials: async () => ({
+ *     kind: 'aws',
+ *     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+ *     secretAccessKey: process.env.R2_SECRET!,
+ *   }),
  * })
  * ```
  *
@@ -57,19 +60,10 @@ export interface R2Options {
   /** Key prefix within the bucket. Default `''`. */
   readonly prefix?: string
   /**
-   * R2 access key id. Required unless `client` or `credentials` is
-   * supplied. Prefer short-lived credentials via the account's API
-   * token flow.
-   */
-  readonly accessKeyId?: string
-  /** R2 secret access key. Required unless `client` or `credentials` is supplied. */
-  readonly secretAccessKey?: string
-  /**
    * Rolling short-lived credentials source (the hub's #479 credential-broker
    * seam). R2 keys are S3-compatible, so the provider must yield
    * `kind: 'aws'` credentials; the SDK re-invokes it near `expiresAt`.
-   * Takes precedence over the static `accessKeyId`/`secretAccessKey` pair;
-   * ignored when `client` is supplied (a pre-built client always wins).
+   * Ignored when `client` is supplied (a pre-built client always wins).
    */
   readonly credentials?: StoreCredentialSource
   /**
@@ -122,20 +116,18 @@ export function toCloudflareR2(options: R2Options): NoydbStore {
   if (!options.accountId) {
     throw new Error('@noy-db/to-cloudflare-r2: provide either `client` or `accountId`.')
   }
-  if (!options.credentials && (!options.accessKeyId || !options.secretAccessKey)) {
-    throw new Error('@noy-db/to-cloudflare-r2: `accessKeyId` and `secretAccessKey` (or a `credentials` source) are required (unless `client` is supplied).')
+  if (!options.credentials) {
+    throw new Error(
+      '@noy-db/to-cloudflare-r2: authentication requires a `credentials` source or a pre-built `client`. ' +
+        'Static keys are no longer accepted — wrap them: `credentials: async () => ({ kind: "aws", accessKeyId, secretAccessKey })`.',
+    )
   }
 
   const endpoint = options.endpoint ?? r2EndpointFor(options.accountId)
   const config: S3ClientConfig = {
     region: R2_REGION,
     endpoint,
-    credentials: options.credentials
-      ? async () => mapAws(await options.credentials!())
-      : {
-          accessKeyId: options.accessKeyId!,
-          secretAccessKey: options.secretAccessKey!,
-        },
+    credentials: async () => mapAws(await options.credentials!()),
     forcePathStyle: true,
   }
   const built = new RealS3Client(config)
