@@ -151,8 +151,13 @@ while auth rides the broker. The precedence rule makes the overlap deterministic
 A credential of a kind other than `'token'` throws a clear error naming the kind received,
 rather than silently sending no authorization.
 
-Per-request resolution is what makes expiring tokens work, matching how `to-turso` and
-`to-aws-s3` already consume the broker seam. This is a behavioural improvement to `to-rest`
+Per-request resolution is what makes expiring tokens work. Note that it is **not** how the
+other broker consumers behave: `to-webdav` and `to-turso` cache the token and re-invoke the
+source only inside a refresh-skew window of `expiresAt`, and the AWS stores hand the source to
+the SDK, which memoizes it. `to-rest` deliberately holds no token state — it invokes the source
+once per store operation and never consults `expiresAt`. The trade is simplicity for one extra
+round-trip per operation when the source is backed by a remote token endpoint; a caller who
+minds can wrap the source in a cache of their own. This is a behavioural change to `to-rest`
 independent of the locator work.
 
 ## Testing

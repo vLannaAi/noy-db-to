@@ -167,6 +167,13 @@ export interface R2Address {
   readonly bucket: string
   readonly accountId?: string
   readonly prefix?: string
+  /**
+   * Overrides the derived `https://<accountId>.r2.cloudflarestorage.com`
+   * origin (a custom domain, or an R2-compatible test endpoint).
+   * `accountId` is still required alongside it — `resolve()` rejects a
+   * descriptor carrying neither a `binding.client` nor an `accountId`,
+   * whatever `endpoint` says.
+   */
   readonly endpoint?: string
 }
 
