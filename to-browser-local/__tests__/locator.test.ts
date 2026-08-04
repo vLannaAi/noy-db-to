@@ -38,6 +38,28 @@ describe('to-browser-local — store-locator descriptor (#58)', () => {
     })
   })
 
+  // The descriptor's `options` slot is behaviourally transparent to the
+  // conformance suite, so shape assertions alone would stay green if a
+  // factory dropped `...options`. `obfuscate` is the one option with a
+  // cheap observable effect — this is the pattern's behavioural anchor.
+  it('descriptor options reach the store: obfuscate hashes the localStorage keys', async () => {
+    const locator = createStoreLocator()
+    registerBrowserLocalStore(locator)
+    const store = await locator.resolve(browserLocalStoreDescriptor({ prefix: 'obf' }, { obfuscate: true }))
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('MyCompany', 'invoices', 'INV-001', envelope)
+
+    const keys = Object.keys(localStorage)
+    expect(keys.length).toBeGreaterThan(0)
+    for (const key of keys) {
+      expect(key).not.toContain('MyCompany')
+      expect(key).not.toContain('invoices')
+      expect(key).not.toContain('INV-001')
+    }
+    // …and the store still reads back through the hashed keys.
+    expect((await store.get('MyCompany', 'invoices', 'INV-001'))?._v).toBe(1)
+  })
+
   it('an unregistered kind fails resolve loudly', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(browserLocalStoreDescriptor({ prefix: 'p' }))).toThrow()
