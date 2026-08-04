@@ -168,6 +168,21 @@ importers:
         specifier: ^22.0.0
         version: 22.20.0
 
+  to-rest:
+    devDependencies:
+      '@noy-db/hub':
+        specifier: 0.5.0
+        version: 0.5.0
+      '@noy-db/in-rest':
+        specifier: 0.6.0-pre.0
+        version: 0.6.0-pre.0(@noy-db/hub@0.5.0)
+      '@noy-db/test-adapter-conformance':
+        specifier: workspace:*
+        version: link:../test-support
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+
   to-smb:
     devDependencies:
       '@noy-db/hub':
@@ -770,6 +785,25 @@ packages:
       zod-to-json-schema: ^3.25.0
     peerDependenciesMeta:
       zod-to-json-schema:
+        optional: true
+
+  '@noy-db/in-rest@0.6.0-pre.0':
+    resolution: {integrity: sha512-h/TQPRs5CQxOc/fayz4LVT1+OwQGQBRVkP02YXA8MeRK9H+SlMUBnmTfBERtLlsf4xMb/KxkrsyptL4Jq3OHlA==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@noy-db/hub': 0.6.0-pre.0
+      express: '*'
+      fastify: '*'
+      h3: '*'
+      hono: '*'
+    peerDependenciesMeta:
+      express:
+        optional: true
+      fastify:
+        optional: true
+      h3:
+        optional: true
+      hono:
         optional: true
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
@@ -2235,6 +2269,10 @@ snapshots:
   '@noy-db/hub@0.5.0':
     dependencies:
       '@noy-db/attestation': 0.5.0
+
+  '@noy-db/in-rest@0.6.0-pre.0(@noy-db/hub@0.5.0)':
+    dependencies:
+      '@noy-db/hub': 0.5.0
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     optional: true
