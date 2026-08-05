@@ -544,7 +544,13 @@ export function tursoStoreDescriptor(address: TursoAddress, options?: TursoDescr
 export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as TursoAddress
   const options = (descriptor.options ?? {}) as TursoDescriptorOptions
-  const binding = (opts.binding ?? {}) as Partial<TursoBinding>
+  const binding = (opts.binding ?? {}) as TursoBinding
+  if (!address.url) {
+    throw new Error(
+      '@noy-db/to-turso: resolving this descriptor requires `address.url` — ' +
+      'a persisted descriptor must state which database it refers to.',
+    )
+  }
   if (!binding.client && !binding.clientFactory) {
     throw new Error(
       '@noy-db/to-turso: resolving this descriptor requires `binding.client` or `binding.clientFactory` — ' +
@@ -554,11 +560,11 @@ export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toTurso({
+    ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
     ...(binding.client !== undefined && { client: binding.client }),
     ...(binding.clientFactory !== undefined && { clientFactory: binding.clientFactory }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),
-    ...(address.table !== undefined && { tableName: address.table }),
-    ...options,
   })
 }
 

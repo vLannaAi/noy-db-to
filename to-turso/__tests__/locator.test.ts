@@ -49,6 +49,13 @@ describe('to-turso — store-locator descriptor (#58)', () => {
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
 
+  it('resolving a hand-built descriptor missing address.url throws a clear error', () => {
+    const locator = createStoreLocator()
+    registerTursoStore(locator)
+    const descriptor = { kind: 'turso', class: 'cloud', address: {} }
+    expect(() => locator.resolve(descriptor, { binding: { client: libsqlOverNodeSqlite() } })).toThrow(/address\.url/)
+  })
+
   it('address.table maps to tableName, not the default', async () => {
     const locator = createStoreLocator()
     registerTursoStore(locator)
