@@ -1,5 +1,12 @@
 # Changelog — to-aws-s3
 
+## 0.5.0
+
+### Store-locator hardening ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- `S3Binding`'s docstring now states explicitly what was already true in behavior: the injected `client` is this store's binding-slot citizen and always wins over address-derived construction.
+- New test asserting the descriptor's `bucket`/`prefix` actually reach the object key the store writes — a systematic sweep across the family found the existing locator round-trip tests were blind to address forwarding (a round-trip is symmetric, so a wrong prefix cancels out); this release closes that gap here.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

@@ -1,6 +1,6 @@
 # @noy-db/to-rest
 
-## Unreleased
+## 0.5.0
 
 ### Store-locator descriptor + credential-broker auth ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
 
