@@ -31,7 +31,7 @@ export const <kind>StoreFactory: StoreFactory
 export function register<Kind>Store(locator: StoreLocator): void
 ```
 
-**Rule 1 — the binding field is always `client`.** Whatever the direct API calls it, `<Kind>Binding.client` is the name. The factory maps it onto the store's own field (`client` → `db`, `client` → `sftp`, and so on). One word across all 17 stores.
+**Rule 1 — the binding field is always `client`.** Whatever the direct API calls it, `<Kind>Binding.client` is the name. The factory maps it onto the store's own field (`client` → `db`, `client` → `sftp`, and so on). One word across these nine stores and the three client-bearing tier-1 stores (`to-aws-s3`, `to-aws-dynamo`, `to-cloudflare-r2`) — `to-rest` and `to-webdav` correctly use `binding.fetch` instead, since a `fetch` function is not a client.
 
 **Rule 2 — the binding is required.** Every factory begins with the same guard and the same message shape:
 
