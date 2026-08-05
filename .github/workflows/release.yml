@@ -277,29 +277,37 @@ jobs:
   # continue-on-error absorbs it (job shows red-but-ignored; publish and
   # the asset upload are unaffected) — doc-sync is then triggered by hand.
   #
-  # STABLE ONLY. A pre-release publishes to npm but does not open a doc-sync
-  # issue or emit a payload.
+  # The payload is built, validated, and attached to the release on EVERY
+  # publish, both channels, no exceptions — the asset is the permanent
+  # record (design: noy-db-docs/docs/superpowers/specs/
+  # 2026-08-05-family-channel-policy-design.md §3, superseding the
+  # `dist_tag == 'latest'` job gate this job used to carry).
   #
-  # The docs site documents the `@latest` channel; nothing consumes the docs
-  # for an individual `@next` pre-release, and `@latest` eventually subsumes
-  # every pre-release on the line. Filing one issue per pre.N produced a
-  # queue nobody could clear, each issue carrying a package list but no
-  # semantic delta — a pre-release's CHANGELOG section is thin, or absent
-  # entirely for a version-only bump, so `changeType` degrades to
-  # "version-only" and the payload says nothing a reader can act on.
+  # Only the `gh issue create` step below is gated, on two independent
+  # conditions:
+  #   (a) Active rail — DOC_SYNC_CHANNELS lists which npm dist-tag channels
+  #       are currently synced to docs. Pre-1.0 that's `next` only; `latest`
+  #       is parked (still gets its payload asset, opens no issue) until the
+  #       rail table flips at 1.0.
+  #   (b) Real delta — some package in the payload is `added`/`updated`, or
+  #       carries a non-empty changelog. An all-`version-only` payload opens
+  #       nothing even on an active rail.
   #
-  # Gating on the stable cut concentrates the signal rather than losing it:
-  # the stable release's CHANGELOG section covers everything accumulated
-  # across the pre line, so its payload carries the cumulative delta.
+  # Both gates log their reason clearly to the workflow output so a green
+  # run with no issue is legible, not silent.
   #
   # noy-db/.github/workflows/release.yml gates its equivalent job the same
   # way — keep the two in step.
   docs-bridge:
     name: Docs bridge payload + notify
     needs: publish
-    if: github.event_name == 'release' && needs.publish.outputs.dist_tag == 'latest'
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      # Space-separated list of npm dist-tag channels currently synced to
+      # docs. Pre-1.0: `next` only. At 1.0 this becomes `next latest`.
+      DOC_SYNC_CHANNELS: next
     permissions:
       contents: write   # gh release upload (asset on THIS repo's release)
     steps:
@@ -349,6 +357,25 @@ jobs:
           TAG="${{ github.event.release.tag_name }}"
           CHANNEL="${{ needs.publish.outputs.dist_tag }}"
           ASSET_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/$TAG/docs-bridge.json"
+
+          # Gate (a): active rail. DOC_SYNC_CHANNELS is a space-separated list.
+          if ! echo " $DOC_SYNC_CHANNELS " | grep -q " $CHANNEL "; then
+            echo "No doc-sync issue opened: channel '$CHANNEL' is parked (DOC_SYNC_CHANNELS=\"$DOC_SYNC_CHANNELS\"). Payload asset is still attached to the release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Gate (b): real delta. An all-version-only payload with no
+          # changelog text anywhere is not worth an issue.
+          if ! node --input-type=module -e "
+            import { hasRealDelta } from './scripts/docs-bridge/build-payload.mjs'
+            import { readFileSync } from 'node:fs'
+            const p = JSON.parse(readFileSync('/tmp/docs-bridge.json', 'utf8'))
+            process.exit(hasRealDelta(p) ? 0 : 1)
+          "; then
+            echo "No doc-sync issue opened: payload has no delta (every package is version-only with no changelog) on channel '$CHANNEL'. Payload asset is still attached to the release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           {
             echo "noy-db-to \`$TAG\` was just published to npm dist-tag \`$CHANNEL\`."
             echo ""

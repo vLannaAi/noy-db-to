@@ -49,6 +49,15 @@ with `confirm: PUBLISH`); the `verify` gate (install + arch + build + lint + typ
 version↔tag) must pass before `pnpm -r publish --provenance` runs. A plain push to `release.yml` runs
 verify only — never publishes. Pre-release checkbox → `@next`; unmarked → `@latest`.
 
+### Release discipline: pre-releases, then stables
+
+Work lands on the pre line as `0.6.0-pre.N`; stables are curated, themed promotions cut from that
+line — never directly from `main` (design: `noy-db-docs/docs/superpowers/specs/
+2026-08-05-family-channel-policy-design.md` §1). This repo had drifted from that habit, cutting
+stable-only since `0.5.0` on 2026-07-30, which left `@next` stranded behind `@latest`. The first
+`0.6.0-pre.0` publish repairs the dist-tag automatically — `release.yml` routes a pre-release to
+`@next`, so no manual `npm dist-tag` move is needed.
+
 ## Hard constraints (always)
 
 - **Never** add Claude/Anthropic attribution to commits, PRs, release notes, or CHANGELOGs.
