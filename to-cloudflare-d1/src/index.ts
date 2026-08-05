@@ -29,7 +29,16 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  TxOp,
+  ListPageResult,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /** Duck-typed subset of the `D1Database` binding. */
@@ -344,4 +353,82 @@ export function toCloudflareD1(options: D1StoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a Cloudflare D1 store. `binding` and `database`
+ * are identity-only — the connection lives in the injected
+ * `binding.client`, so the factory does not consume them.
+ */
+export interface CloudflareD1Address {
+  /**
+   * The Workers `env.<BINDING>` name — how a D1 user identifies a
+   * database. Note the unfortunate collision with our own `binding` slot
+   * on {@link CloudflareD1Binding} — this field names the D1 binding, not
+   * our locator's binding. Identity-only: not consumed by the factory.
+   */
+  readonly binding?: string
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly database?: string
+  /** Maps to `D1StoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface CloudflareD1DescriptorOptions {
+  readonly autoMigrate?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `D1Database` this store has no way to construct itself. Never serialized
+ * into a pod alongside the descriptor.
+ */
+export interface CloudflareD1Binding {
+  readonly client: D1Database
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toCloudflareD1()` store:
+ * `kind: 'cloudflare-d1'`, `class: 'cloud'`, with the identity address and
+ * the serializable tuning as `options`. Credentialless by construction —
+ * the live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function cloudflareD1StoreDescriptor(
+  address: CloudflareD1Address,
+  options?: CloudflareD1DescriptorOptions,
+): StoreDescriptor {
+  return { kind: 'cloudflare-d1', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-cloudflare-d1`: reconstructs the same store
+ * `toCloudflareD1()` builds, from a descriptor produced by
+ * {@link cloudflareD1StoreDescriptor}. `opts.binding.client` is required —
+ * this store has no client library of its own and cannot build a
+ * connection from `address` alone.
+ */
+export const cloudflareD1StoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as CloudflareD1Address
+  const options = (descriptor.options ?? {}) as CloudflareD1DescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<CloudflareD1Binding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-cloudflare-d1: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toCloudflareD1({
+    db: binding.client,
+    ...(address.table !== undefined && { tableName: address.table }),
+    ...options,
+  })
+}
+
+/** Registers {@link cloudflareD1StoreFactory} under the `'cloudflare-d1'` kind on `locator`. */
+export function registerCloudflareD1Store(locator: StoreLocator): void {
+  locator.register('cloudflare-d1', cloudflareD1StoreFactory)
 }
