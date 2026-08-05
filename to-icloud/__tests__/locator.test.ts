@@ -67,6 +67,7 @@ describe('to-icloud — store-locator descriptor (#58)', () => {
     const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
     await store.put('v', 'c', 'a', envelope)
     expect([...fs.files.keys()].some(p => p.startsWith('/custom-icloud-folder/'))).toBe(true)
+    expect([...fs.files.keys()]).toEqual(['/custom-icloud-folder/v.noydb'])
   })
 })
 
