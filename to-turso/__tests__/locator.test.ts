@@ -49,6 +49,20 @@ describe('to-turso — store-locator descriptor (#58)', () => {
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
 
+  it('address.table maps to tableName, not the default', async () => {
+    const locator = createStoreLocator()
+    registerTursoStore(locator)
+    const client = libsqlOverNodeSqlite()
+    const descriptor = tursoStoreDescriptor({ url: 'libsql://app.turso.io', table: 'custom_table' })
+    const store = await locator.resolve(descriptor, { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const { rows } = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    const tables = (rows as { name: string }[]).map(r => r.name)
+    expect(tables).toContain('custom_table')
+    expect(tables).not.toContain('noydb_envelopes')
+  })
+
   it('resolves via binding.clientFactory + opts.credentials (the constructible path)', async () => {
     const locator = createStoreLocator()
     registerTursoStore(locator)

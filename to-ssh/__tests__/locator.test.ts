@@ -45,6 +45,18 @@ describe('to-ssh — store-locator descriptor (#58)', () => {
     const descriptor = sshStoreDescriptor({})
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
+
+  it('address.path maps to remotePath, not the default', async () => {
+    const locator = createStoreLocator()
+    registerSshStore(locator)
+    const client = mockSftp()
+    const descriptor = sshStoreDescriptor({ path: 'custom-root' })
+    const store = await locator.resolve(descriptor, { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect([...client.files.keys()]).toContain('/custom-root/v/c/a.json')
+    expect([...client.files.keys()]).not.toContain('/noydb/v/c/a.json')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

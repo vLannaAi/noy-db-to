@@ -45,6 +45,20 @@ describe('to-sqlite — store-locator descriptor (#58)', () => {
     const descriptor = sqliteStoreDescriptor({ table: 'noydb_envelopes' })
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
+
+  it('address.table maps to tableName, not the default', async () => {
+    const locator = createStoreLocator()
+    registerSqliteStore(locator)
+    const client = new DatabaseSync(':memory:')
+    const descriptor = sqliteStoreDescriptor({ file: 'app.db', table: 'custom_table' })
+    const store = await locator.resolve(descriptor, { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const tables = (client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[])
+      .map(r => r.name)
+    expect(tables).toContain('custom_table')
+    expect(tables).not.toContain('noydb_envelopes')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

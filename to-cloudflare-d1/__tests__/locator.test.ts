@@ -45,6 +45,20 @@ describe('to-cloudflare-d1 — store-locator descriptor (#58)', () => {
     const descriptor = cloudflareD1StoreDescriptor({ table: 'noydb_envelopes' })
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
+
+  it('address.table maps to tableName, not the default', async () => {
+    const locator = createStoreLocator()
+    registerCloudflareD1Store(locator)
+    const client = d1OverNodeSqlite()
+    const descriptor = cloudflareD1StoreDescriptor({ binding: 'DB', database: 'app', table: 'custom_table' })
+    const store = await locator.resolve(descriptor, { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const { results } = await client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all<{ name: string }>()
+    const tables = results.map(r => r.name)
+    expect(tables).toContain('custom_table')
+    expect(tables).not.toContain('noydb_envelopes')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

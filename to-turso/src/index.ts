@@ -549,7 +549,8 @@ export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
     throw new Error(
       '@noy-db/to-turso: resolving this descriptor requires `binding.client` or `binding.clientFactory` — ' +
       'this store does not construct its own connection. ' +
-      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+      'Pass one: locator.resolve(descriptor, { binding: { client } }) or ' +
+      'locator.resolve(descriptor, { binding: { clientFactory }, credentials }).',
     )
   }
   return toTurso({

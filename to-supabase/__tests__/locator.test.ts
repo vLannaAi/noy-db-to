@@ -48,6 +48,25 @@ describe('to-supabase — store-locator descriptor (#58)', () => {
     const descriptor = supabaseStoreDescriptor({ table: 'noydb_envelopes' })
     expect(() => locator.resolve(descriptor, {})).toThrow(/binding\.client/)
   })
+
+  it('address.table maps to tableName, not the default', async () => {
+    const locator = createStoreLocator()
+    registerSupabaseStore(locator)
+    const client = mockClient()
+    const queries: string[] = []
+    const spiedClient = {
+      query: async <T,>(sql: string, params?: readonly unknown[]) => {
+        queries.push(sql)
+        return client.query<T>(sql, params)
+      },
+    }
+    const descriptor = supabaseStoreDescriptor({ projectRef: 'abcxyz', table: 'custom_table' })
+    const store = await locator.resolve(descriptor, { binding: { client: spiedClient } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(queries.some(q => q.includes('custom_table'))).toBe(true)
+    expect(queries.some(q => q.includes('noydb_envelopes'))).toBe(false)
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────
