@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { StoreCredentials } from '@noy-db/hub/to'
+import { toCloudflareR2 } from '../src/index.js'
 
 // #479 credential-broker adoption for R2 (noy-db-to#10) — `credentials?:
 // StoreCredentialSource` on `R2Options`, threaded into the R2-pointed
 // `new S3Client({...})` as a functional provider via to-aws-s3's shared
 // `mapAws`. R2 keys are S3-compatible, so `kind: 'aws'` maps directly.
-// Precedence: pre-built `client` > `credentials` > static keys.
+// Precedence: pre-built `client` > `credentials`.
 
 const ROLLING: StoreCredentials = {
   kind: 'aws',
@@ -47,7 +48,7 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
     vi.doUnmock('@aws-sdk/client-s3')
   })
 
-  it('credentials takes precedence over static keys when both are supplied', async () => {
+  it('builds a function-valued SDK credentials provider from a credentials source', async () => {
     const capturedConfigs: Record<string, unknown>[] = []
     vi.doMock('@aws-sdk/client-s3', () => ({
       S3Client: class {
@@ -61,8 +62,6 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
     toCloudflareR2({
       bucket: 'b',
       accountId: 'acc',
-      accessKeyId: 'STATIC_KEY',
-      secretAccessKey: 'STATIC_SECRET',
       credentials: async () => ROLLING,
     })
 
@@ -72,26 +71,10 @@ describe('to-cloudflare-r2 — credentials refresh hook', () => {
     vi.doUnmock('@aws-sdk/client-s3')
   })
 
-  it('keeps the static-keys path byte-identical when credentials is not supplied', async () => {
-    const capturedConfigs: Record<string, unknown>[] = []
-    vi.doMock('@aws-sdk/client-s3', () => ({
-      S3Client: class {
-        constructor(config: Record<string, unknown>) {
-          capturedConfigs.push(config)
-        }
-      },
-    }))
-
-    const { toCloudflareR2 } = await import('../src/index.js')
-    toCloudflareR2({ bucket: 'b', accountId: 'acc', accessKeyId: 'STATIC_KEY', secretAccessKey: 'STATIC_SECRET' })
-
-    expect(capturedConfigs).toHaveLength(1)
-    expect(capturedConfigs[0]['credentials']).toEqual({
-      accessKeyId: 'STATIC_KEY',
-      secretAccessKey: 'STATIC_SECRET',
-    })
-
-    vi.doUnmock('@aws-sdk/client-s3')
+  it('rejects construction with neither credentials nor client', () => {
+    expect(() => toCloudflareR2({ bucket: 'b', accountId: 'acc' })).toThrow(
+      /`credentials` source or a pre-built `client`/,
+    )
   })
 
   it('pre-built client short-circuits — no S3Client constructed even when credentials is supplied', async () => {
