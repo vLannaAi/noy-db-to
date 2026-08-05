@@ -38,7 +38,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbPodStore } from '@noy-db/hub/to'
+import type { NoydbPodStore, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import { PodVersionConflictError } from '@noy-db/hub/to'
 
 /** Default iCloud Drive folder name inside a user's mobile-documents tree. */
@@ -240,4 +240,85 @@ export async function nodeFs(): Promise<ICloudFs> {
       })
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `local` class, opaque-client tier) ──
+
+/**
+ * Serializable location of an iCloud store. `folder` is REQUIRED — unlike
+ * the other stores in this tier, `toIcloud()` has no default and refuses
+ * to construct without it.
+ */
+export interface ICloudAddress {
+  /** Maps to `ICloudStoreOptions.folder`. Required — `toIcloud()` has no default. */
+  readonly folder: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface ICloudDescriptorOptions {
+  readonly suffix?: string
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `ICloudFs` this store has no way to construct itself. Never serialized
+ * into a pod alongside the descriptor.
+ */
+export interface ICloudBinding {
+  readonly client: ICloudFs
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toIcloud()` store:
+ * `kind: 'icloud'`, `class: 'local'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live filesystem facade arrives via `binding.client` at `resolve()` time.
+ */
+export function icloudStoreDescriptor(address: ICloudAddress, options?: ICloudDescriptorOptions): StoreDescriptor {
+  return { kind: 'icloud', class: 'local', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * Reconstructs the same store `toIcloud()` builds, from a descriptor
+ * produced by {@link icloudStoreDescriptor}. `opts.binding.client` is
+ * required — this store has no client library of its own and cannot build
+ * a filesystem facade from `address` alone.
+ *
+ * `toIcloud()` returns a `NoydbPodStore`, not a `NoydbStore` — this
+ * factory's return type is deliberately NOT narrowed to match the hub's
+ * generic `StoreFactory` shape. Callers that need the six-method contract
+ * wrap the result with `wrapPodStore()` themselves, exactly as this
+ * package's own tests do for `toIcloud()` directly.
+ */
+export function icloudStoreFactory(
+  descriptor: StoreDescriptor,
+  opts: { binding?: unknown },
+): NoydbPodStore {
+  const address = descriptor.address as ICloudAddress
+  const options = (descriptor.options ?? {}) as ICloudDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<ICloudBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-icloud: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toIcloud({
+    folder: address.folder,
+    fs: binding.client,
+    ...options,
+  })
+}
+
+/**
+ * Registers {@link icloudStoreFactory} under the `'icloud'` kind on
+ * `locator`. The cast is required (not a shape assertion) because
+ * `StoreLocator.register()`'s declared `StoreFactory` type returns
+ * `NoydbStore`, while `icloudStoreFactory` deliberately returns the
+ * unnarrowed `NoydbPodStore` — `createStoreLocator()` itself performs no
+ * runtime shape check, it only stores and later invokes the factory.
+ */
+export function registerIcloudStore(locator: StoreLocator): void {
+  locator.register('icloud', icloudStoreFactory as unknown as StoreFactory)
 }

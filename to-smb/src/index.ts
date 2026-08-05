@@ -36,7 +36,14 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -201,4 +208,73 @@ export function toSmb(options: SmbStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `lan` class, opaque-client tier) ────
+
+/**
+ * Serializable location of an SMB store. `host` and `share` are
+ * identity-only — the connection lives in the injected `binding.client`,
+ * so the factory does not consume them.
+ */
+export interface SmbAddress {
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly host?: string
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly share?: string
+  /** Maps to `SmbStoreOptions.remotePath`. Default `'noydb'` when omitted. */
+  readonly path?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface SmbDescriptorOptions {
+  readonly name?: string
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `SmbHandle` this store has no way to construct itself. Never serialized
+ * into a pod alongside the descriptor.
+ */
+export interface SmbBinding {
+  readonly client: SmbHandle
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toSmb()` store:
+ * `kind: 'smb'`, `class: 'lan'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function smbStoreDescriptor(address: SmbAddress, options?: SmbDescriptorOptions): StoreDescriptor {
+  return { kind: 'smb', class: 'lan', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-smb`: reconstructs the same store `toSmb()`
+ * builds, from a descriptor produced by {@link smbStoreDescriptor}.
+ * `opts.binding.client` is required — this store has no client library of
+ * its own and cannot build a connection from `address` alone.
+ */
+export const smbStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as SmbAddress
+  const options = (descriptor.options ?? {}) as SmbDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<SmbBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-smb: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toSmb({
+    smb: binding.client,
+    ...(address.path !== undefined && { remotePath: address.path }),
+    ...options,
+  })
+}
+
+/** Registers {@link smbStoreFactory} under the `'smb'` kind on `locator`. */
+export function registerSmbStore(locator: StoreLocator): void {
+  locator.register('smb', smbStoreFactory)
 }
