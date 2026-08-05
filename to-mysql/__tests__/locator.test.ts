@@ -56,6 +56,10 @@ describe('to-mysql — store-locator descriptor (#58)', () => {
         queries.push(sql)
         return client.execute<T>(sql, params)
       },
+      query: async <T,>(sql: string) => {
+        queries.push(sql)
+        return client.execute<T>(sql)
+      },
     }
     const descriptor = mysqlStoreDescriptor({ table: 'custom_table' })
     const store = await locator.resolve(descriptor, { binding: { client: spiedClient } })
