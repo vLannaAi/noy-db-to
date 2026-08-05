@@ -1,5 +1,11 @@
 # @noy-db/to-supabase
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `supabaseStoreDescriptor()` / `supabaseStoreFactory` / `registerSupabaseStore()` (plus the `SupabaseAddress`, `SupabaseDescriptorOptions`, `SupabaseBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'supabase'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. `address` is `{ projectRef?, schema?, table? }`: `table` maps to `tableName`; `projectRef` and `schema` are identity-only and not consumed by the factory — the connection already carries them. `opts.binding.client` is required because this store does not construct its own connection; resolving without it throws a clear error naming the missing slot. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

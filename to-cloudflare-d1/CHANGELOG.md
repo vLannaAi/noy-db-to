@@ -1,5 +1,11 @@
 # @noy-db/to-cloudflare-d1
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `cloudflareD1StoreDescriptor()` / `cloudflareD1StoreFactory` / `registerCloudflareD1Store()` (plus the `CloudflareD1Address`, `CloudflareD1DescriptorOptions`, `CloudflareD1Binding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'cloudflare-d1'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. `address` is `{ binding?, database?, table? }`: `table` maps to `tableName`; `binding` (the Workers `env.<BINDING>` name — note the unfortunate name collision with the locator's own `binding` slot) and `database` are identity-only and not consumed by the factory — the connection already carries them. `opts.binding.client` is required because this store does not construct its own connection; resolving without it throws a clear error naming the missing slot. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))
