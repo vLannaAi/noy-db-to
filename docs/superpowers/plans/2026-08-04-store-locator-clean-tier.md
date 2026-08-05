@@ -1202,7 +1202,23 @@ Open the PR with title `feat(to-cloudflare-r2)!: drop plaintext credentials (#58
 
 ### Task 7: Release 0.5.0
 
-Only after PRs A and B have merged to `main`.
+> **DEFERRED — do not execute this task yet (decision of 2026-08-05).**
+>
+> The release is held until **all three tiers of #58** have landed, so the locator
+> story ships as one coherent release with a single migration note instead of two.
+> Tier 1 (this plan) merges to `main` and sits there unreleased.
+>
+> This is deliberately safe: what is deferred is the version bump *and* the publish
+> together, so `main` stays honestly at `0.4.0` and no manifest ever claims a version
+> that is absent from npm — the phantom-version failure mode the family CLAUDE.md
+> warns about. The package CHANGELOGs carry `## Unreleased` sections, not version
+> headings, for exactly this reason.
+>
+> When the release does happen it will cover all three tiers, so the version may not
+> be `0.5.0` and the CHANGELOG copy below will need rewriting to match the full
+> scope. Treat the steps here as the mechanical recipe, not the final content.
+
+Only after PRs A and B have merged to `main` **and tiers 2 and 3 of #58 are complete**.
 
 **Files:**
 - Modify: `package.json` (root `version`)
