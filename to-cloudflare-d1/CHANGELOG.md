@@ -1,6 +1,6 @@
 # @noy-db/to-cloudflare-d1
 
-## Unreleased
+## 0.5.0
 
 ### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
 

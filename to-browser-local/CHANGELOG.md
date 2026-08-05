@@ -1,6 +1,6 @@
 # Changelog — to-browser-local
 
-## Unreleased
+## 0.5.0
 
 ### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
 

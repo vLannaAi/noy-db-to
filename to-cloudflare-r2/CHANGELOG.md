@@ -1,6 +1,6 @@
 # @noy-db/to-cloudflare-r2
 
-## Unreleased
+## 0.5.0
 
 ### BREAKING: `accessKeyId` / `secretAccessKey` removed from `toCloudflareR2()` ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
 

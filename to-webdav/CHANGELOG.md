@@ -1,5 +1,11 @@
 # @noy-db/to-webdav
 
+## 0.5.0
+
+### Store-locator hardening ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New test asserting the descriptor's `baseUrl`/`prefix` actually reach the URL the store requests — a systematic sweep across the family found the existing locator round-trip tests were blind to address forwarding (a round-trip is symmetric, so a wrong prefix cancels out); this release closes that gap here. Test-only otherwise.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))
