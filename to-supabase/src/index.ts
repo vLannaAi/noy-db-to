@@ -130,9 +130,9 @@ export const supabaseStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSupabase({
-    client: binding.client,
-    ...(address.table !== undefined && { tableName: address.table }),
     ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    client: binding.client,
   })
 }
 

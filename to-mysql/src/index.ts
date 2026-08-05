@@ -304,9 +304,9 @@ export const mysqlStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toMysql({
-    client: binding.client,
-    ...(address.table !== undefined && { tableName: address.table }),
     ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    client: binding.client,
   })
 }
 

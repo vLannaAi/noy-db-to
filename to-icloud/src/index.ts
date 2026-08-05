@@ -305,9 +305,9 @@ export function icloudStoreFactory(
     )
   }
   return toIcloud({
+    ...options,
     folder: address.folder,
     fs: binding.client,
-    ...options,
   })
 }
 

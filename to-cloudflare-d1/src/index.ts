@@ -422,9 +422,9 @@ export const cloudflareD1StoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toCloudflareD1({
-    db: binding.client,
-    ...(address.table !== undefined && { tableName: address.table }),
     ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    db: binding.client,
   })
 }
 

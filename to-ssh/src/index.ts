@@ -286,9 +286,9 @@ export const sshStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSsh({
-    sftp: binding.client,
-    ...(address.path !== undefined && { remotePath: address.path }),
     ...options,
+    ...(address.path !== undefined && { remotePath: address.path }),
+    sftp: binding.client,
   })
 }
 

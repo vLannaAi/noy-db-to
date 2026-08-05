@@ -268,9 +268,9 @@ export const smbStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSmb({
-    smb: binding.client,
-    ...(address.path !== undefined && { remotePath: address.path }),
     ...options,
+    ...(address.path !== undefined && { remotePath: address.path }),
+    smb: binding.client,
   })
 }
 

@@ -64,6 +64,30 @@ describe('to-postgres — store-locator descriptor (#58)', () => {
     expect(queries.some(q => q.includes('custom_table'))).toBe(true)
     expect(queries.some(q => q.includes('noydb_envelopes'))).toBe(false)
   })
+
+  it('address.table wins over a conflicting options.tableName (a plain-JSON descriptor as it would round-trip through a pod)', async () => {
+    const locator = createStoreLocator()
+    registerPostgresStore(locator)
+    const client = mockClient()
+    const queries: string[] = []
+    const spiedClient = {
+      query: async <T,>(sql: string, params?: readonly unknown[]) => {
+        queries.push(sql)
+        return client.query<T>(sql, params)
+      },
+    }
+    const descriptor = {
+      kind: 'postgres',
+      class: 'cloud',
+      address: { table: 'from_address' },
+      options: { tableName: 'from_options' },
+    }
+    const store = await locator.resolve(descriptor, { binding: { client: spiedClient } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(queries.some(q => q.includes('from_address'))).toBe(true)
+    expect(queries.some(q => q.includes('from_options'))).toBe(false)
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

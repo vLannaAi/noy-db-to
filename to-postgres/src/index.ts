@@ -323,9 +323,9 @@ export const postgresStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toPostgres({
-    client: binding.client,
-    ...(address.table !== undefined && { tableName: address.table }),
     ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    client: binding.client,
   })
 }
 

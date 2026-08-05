@@ -370,9 +370,9 @@ export const sqliteStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSqlite({
-    db: binding.client,
-    ...(address.table !== undefined && { tableName: address.table }),
     ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    db: binding.client,
   })
 }
 
