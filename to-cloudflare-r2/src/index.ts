@@ -177,7 +177,9 @@ export interface R2DescriptorOptions {
 /**
  * Device-local supplement resolved at `resolve()` time — a pre-built
  * `S3Client` (a shared R2-pointed client, a Workers binding, or a test
- * fake). Never serialized into a pod alongside the descriptor.
+ * fake). Never serialized into a pod alongside the descriptor. This is
+ * `to-cloudflare-r2`'s binding-slot citizen (#58) — when supplied, it
+ * always wins over address-derived construction.
  */
 export interface R2Binding {
   readonly client?: S3Client

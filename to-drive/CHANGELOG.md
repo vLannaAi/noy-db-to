@@ -1,5 +1,11 @@
 # @noy-db/to-drive
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `driveStoreDescriptor()` / `driveStoreFactory` / `registerDriveStore()` (plus the `DriveAddress`, `DriveDescriptorOptions`, `DriveBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'drive'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. `address` is `{ parentId? }`, the Drive parent folder id; omitted leaves the store's existing `appDataFolder` default intact. `options` is `{ suffix? }`, the bundle filename suffix (default `'.noydb'`). `opts.binding.client` is required because this store does not construct its own connection — mapped onto the store's `drive` option; resolving without it throws a clear error naming the missing slot. `binding.handles` carries the per-device `HandleStore`; omitted leaves the store's in-memory default. `toDrive()` returns a `NoydbPodStore`, so — like `to-icloud` — `driveStoreFactory`'s return type is deliberately unnarrowed and `registerDriveStore()` registers it via a documented `as unknown as StoreFactory` cast. Verified by a descriptor→resolve→full-conformance round-trip (via `wrapPodStore()`) plus an address-forwarding test against the injected mock Drive client.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

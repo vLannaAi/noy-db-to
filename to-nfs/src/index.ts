@@ -30,7 +30,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/to'
+import type { NoydbStore, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import { jsonFile } from './internal-file-store.js'
 
 export interface NfsStoreOptions {
@@ -188,4 +188,72 @@ export function toNfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): P
     },
     diagnostics,
   }
+}
+
+// ─── Store-locator descriptor (#58 — `lan` class, binding-slot tier) ────
+
+/**
+ * Serializable location of an NFS store. `server` and `export` describe
+ * the logical `server:/export` identity. Identity-only — the factory does
+ * not consume them; `binding.mountPath` is what the store actually opens.
+ */
+export interface NfsAddress {
+  /** Identity-only: not consumed by the factory (`binding.mountPath` is what opens). */
+  readonly server?: string
+  /** Identity-only: not consumed by the factory (`binding.mountPath` is what opens). */
+  readonly export?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface NfsDescriptorOptions {
+  readonly onNolock?: 'warn' | 'error'
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — where the export
+ * is actually mounted on this machine, which the descriptor cannot carry.
+ * Never serialized into a pod alongside the descriptor.
+ */
+export interface NfsBinding {
+  readonly mountPath: string
+  readonly mountDetector?: MountDetector
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toNfs()` store: `kind: 'nfs'`,
+ * `class: 'lan'`, with the identity address and the serializable tuning as
+ * `options`. Credentialless by construction — the live mount point arrives
+ * via `binding.mountPath` at `resolve()` time.
+ */
+export function nfsStoreDescriptor(address: NfsAddress, options?: NfsDescriptorOptions): StoreDescriptor {
+  return { kind: 'nfs', class: 'lan', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-nfs`: reconstructs the same store `toNfs()`
+ * builds, from a descriptor produced by {@link nfsStoreDescriptor}.
+ * `opts.binding.mountPath` is required — `toNfs()` fails fast without a
+ * mount point, and where an export is mounted is device-local and never
+ * travels in a descriptor.
+ */
+export const nfsStoreFactory: StoreFactory = (descriptor, opts) => {
+  const options = (descriptor.options ?? {}) as NfsDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<NfsBinding>
+  if (!binding.mountPath) {
+    throw new Error(
+      '@noy-db/to-nfs: resolving this descriptor requires `binding.mountPath` — ' +
+      'where an export is mounted is device-local and never travels in a descriptor. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { mountPath } }).',
+    )
+  }
+  return toNfs({
+    ...options,
+    ...(binding.mountDetector !== undefined && { mountDetector: binding.mountDetector }),
+    mountPath: binding.mountPath,
+  })
+}
+
+/** Registers {@link nfsStoreFactory} under the `'nfs'` kind on `locator`. */
+export function registerNfsStore(locator: StoreLocator): void {
+  locator.register('nfs', nfsStoreFactory)
 }

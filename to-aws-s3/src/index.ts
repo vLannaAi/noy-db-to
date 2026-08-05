@@ -387,7 +387,9 @@ export interface S3DescriptorOptions {
 /**
  * Device-local supplement resolved at `resolve()` time — a pre-built
  * `S3Client` (shared client, custom middleware, or a test fake). Never
- * serialized into a pod alongside the descriptor.
+ * serialized into a pod alongside the descriptor. This is `to-aws-s3`'s
+ * binding-slot citizen (#58) — when supplied, it always wins over
+ * address-derived construction.
  */
 export interface S3Binding {
   readonly client?: S3Client

@@ -497,7 +497,9 @@ export interface DynamoAddress {
 /**
  * Device-local supplement resolved at `resolve()` time — a pre-built
  * document client (shared client, custom middleware, or a test fake).
- * Never serialized into a pod alongside the descriptor.
+ * Never serialized into a pod alongside the descriptor. This is
+ * `to-aws-dynamo`'s binding-slot citizen (#58) — when supplied, it
+ * always wins over address-derived construction.
  */
 export interface DynamoBinding {
   readonly client?: DynamoDocClient
