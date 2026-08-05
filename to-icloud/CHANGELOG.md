@@ -1,5 +1,11 @@
 # @noy-db/to-icloud
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `icloudStoreDescriptor()` / `icloudStoreFactory` / `registerIcloudStore()` (plus the `ICloudAddress`, `ICloudDescriptorOptions`, `ICloudBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'icloud'`, `class: 'local'`) reconstructs the store via `createStoreLocator()`. `address` is `{ folder }`: `folder` maps to `ICloudStoreOptions.folder` and is **required** — unlike the other stores in this tier, `toIcloud()` has no default and refuses to construct without it. `opts.binding.client` is required because this store does not construct its own filesystem facade; resolving without it throws a clear error naming the missing slot. `toIcloud()` returns a `NoydbPodStore`, not a `NoydbStore`, so `icloudStoreFactory`'s return type is deliberately unnarrowed — callers that need the six-method contract wrap the result with `wrapPodStore()` themselves.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

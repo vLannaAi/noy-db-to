@@ -1,5 +1,11 @@
 # @noy-db/to-sqlite
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `sqliteStoreDescriptor()` / `sqliteStoreFactory` / `registerSqliteStore()` (plus the `SqliteAddress`, `SqliteDescriptorOptions`, `SqliteBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'sqlite'`, `class: 'local'`) reconstructs the store via `createStoreLocator()`. `address` is `{ file?, table? }`: `table` maps to `tableName`; `file` is identity-only and not consumed by the factory — the connection already carries it. `opts.binding.client` is required because this store does not construct its own connection; resolving without it throws a clear error naming the missing slot. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

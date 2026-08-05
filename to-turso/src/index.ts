@@ -22,7 +22,17 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult, StoreCredentialSource } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  TxOp,
+  ListPageResult,
+  StoreCredentialSource,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /** Rebuild the client this many ms before the broker token's `expiresAt`. */
@@ -474,4 +484,91 @@ export function toTurso(options: TursoStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a Turso store. `url` is REQUIRED — #58 flags
+ * that today the URL is captured inside a `clientFactory` closure and
+ * therefore invisible; putting it on the address states which database a
+ * persisted descriptor refers to.
+ */
+export interface TursoAddress {
+  /**
+   * `@libsql/client({ url })` connection URL. Required — states which
+   * database a persisted descriptor refers to. Identity-only: not consumed
+   * by the factory (the connection, built from `binding.client` or
+   * `binding.clientFactory`, already carries it).
+   */
+  readonly url: string
+  /** Maps to `TursoStoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface TursoDescriptorOptions {
+  readonly autoMigrate?: boolean
+  readonly clockUncertaintyMs?: number
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time. `to-turso` is the
+ * one store in this tier that CAN construct its own connection — given
+ * `clientFactory` plus `credentials` — so its binding accepts either a
+ * pre-built `client` or a `clientFactory` to build one. Never serialized
+ * into a pod alongside the descriptor.
+ */
+export interface TursoBinding {
+  readonly client?: LibsqlClient
+  readonly clientFactory?: (authToken: string) => LibsqlClient
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toTurso()` store:
+ * `kind: 'turso'`, `class: 'cloud'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` (or `binding.clientFactory`
+ * + `opts.credentials`) at `resolve()` time.
+ */
+export function tursoStoreDescriptor(address: TursoAddress, options?: TursoDescriptorOptions): StoreDescriptor {
+  return { kind: 'turso', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-turso`: reconstructs the same store `toTurso()`
+ * builds, from a descriptor produced by {@link tursoStoreDescriptor}.
+ * `opts.binding.client` or `opts.binding.clientFactory` is required — this
+ * store cannot build a connection from `address` alone.
+ */
+export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as TursoAddress
+  const options = (descriptor.options ?? {}) as TursoDescriptorOptions
+  const binding = (opts.binding ?? {}) as TursoBinding
+  if (!address.url) {
+    throw new Error(
+      '@noy-db/to-turso: resolving this descriptor requires `address.url` — ' +
+      'a persisted descriptor must state which database it refers to.',
+    )
+  }
+  if (!binding.client && !binding.clientFactory) {
+    throw new Error(
+      '@noy-db/to-turso: resolving this descriptor requires `binding.client` or `binding.clientFactory` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }) or ' +
+      'locator.resolve(descriptor, { binding: { clientFactory }, credentials }).',
+    )
+  }
+  return toTurso({
+    ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    ...(binding.client !== undefined && { client: binding.client }),
+    ...(binding.clientFactory !== undefined && { clientFactory: binding.clientFactory }),
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+  })
+}
+
+/** Registers {@link tursoStoreFactory} under the `'turso'` kind on `locator`. */
+export function registerTursoStore(locator: StoreLocator): void {
+  locator.register('turso', tursoStoreFactory)
 }

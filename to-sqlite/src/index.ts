@@ -30,7 +30,16 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  TxOp,
+  ListPageResult,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -303,4 +312,71 @@ export function toSqlite(options: SqliteStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `local` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a SQLite store. `file` is identity-only — the
+ * connection lives in the injected `binding.client`, so the factory does
+ * not consume it.
+ */
+export interface SqliteAddress {
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly file?: string
+  /** Maps to `SqliteStoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface SqliteDescriptorOptions {
+  readonly autoMigrate?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `SqliteDatabase` this store has no way to construct itself. Never
+ * serialized into a pod alongside the descriptor.
+ */
+export interface SqliteBinding {
+  readonly client: SqliteDatabase
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toSqlite()` store:
+ * `kind: 'sqlite'`, `class: 'local'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function sqliteStoreDescriptor(address: SqliteAddress, options?: SqliteDescriptorOptions): StoreDescriptor {
+  return { kind: 'sqlite', class: 'local', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-sqlite`: reconstructs the same store `toSqlite()`
+ * builds, from a descriptor produced by {@link sqliteStoreDescriptor}.
+ * `opts.binding.client` is required — this store has no client library of
+ * its own and cannot build a connection from `address` alone.
+ */
+export const sqliteStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as SqliteAddress
+  const options = (descriptor.options ?? {}) as SqliteDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<SqliteBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-sqlite: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toSqlite({
+    ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    db: binding.client,
+  })
+}
+
+/** Registers {@link sqliteStoreFactory} under the `'sqlite'` kind on `locator`. */
+export function registerSqliteStore(locator: StoreLocator): void {
+  locator.register('sqlite', sqliteStoreFactory)
 }

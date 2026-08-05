@@ -1,5 +1,11 @@
 # @noy-db/to-turso
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `tursoStoreDescriptor()` / `tursoStoreFactory` / `registerTursoStore()` (plus the `TursoAddress`, `TursoDescriptorOptions`, `TursoBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'turso'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. `address` is `{ url, table? }`: `table` maps to `tableName`, and `url` — the `@libsql/client({ url })` connection URL — is **required**: today it is captured invisibly inside a `clientFactory` closure, so putting it on the address states which database a persisted descriptor refers to, and `tursoStoreFactory` throws a clear error if it is missing. `to-turso` is the one store in this tier that can build its own connection, so `binding` accepts either a pre-built `client` or a `clientFactory` (paired with `opts.credentials`); resolving with neither throws a clear error naming the missing slot.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

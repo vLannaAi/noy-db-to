@@ -36,6 +36,28 @@ describe('to-aws-s3 — store-locator descriptor (#56)', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(s3StoreDescriptor({ bucket: 'b' }))).toThrow()
   })
+
+  it('forwards the descriptor address into the commands the store actually sends (#58)', async () => {
+    const locator = createStoreLocator()
+    registerS3Store(locator)
+    const fake = fakeS3()
+    const seenCommands: { name: string; Bucket?: unknown; Key?: unknown }[] = []
+    const spyClient = {
+      async send(command: unknown) {
+        const name = (command as { constructor: { name: string } }).constructor.name
+        const input = (command as { input: Record<string, unknown> }).input
+        seenCommands.push({ name, Bucket: input.Bucket, Key: input.Key })
+        return fake.client.send(command as never)
+      },
+    } as typeof fake.client
+    const descriptor = s3StoreDescriptor({ bucket: 'custom-bucket', prefix: 'custom-prefix' })
+    const store = await locator.resolve(descriptor, { binding: { client: spyClient } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const putCmd = seenCommands.find(c => c.name === 'PutObjectCommand')
+    expect(putCmd?.Bucket).toBe('custom-bucket')
+    expect(putCmd?.Key).toBe('custom-prefix/v/c/a.json')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

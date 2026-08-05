@@ -25,7 +25,16 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  TxOp,
+  ListPageResult,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /** Duck-typed subset of the mysql2 Pool/Connection promise API. */
@@ -237,4 +246,71 @@ export function toMysql(options: MysqlStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a MySQL store. `database` is identity-only —
+ * the connection lives in the injected `binding.client`, so the factory
+ * does not consume it.
+ */
+export interface MysqlAddress {
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly database?: string
+  /** Maps to `MysqlStoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface MysqlDescriptorOptions {
+  readonly autoMigrate?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `MysqlClient` this store has no way to construct itself. Never
+ * serialized into a pod alongside the descriptor.
+ */
+export interface MysqlBinding {
+  readonly client: MysqlClient
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toMysql()` store:
+ * `kind: 'mysql'`, `class: 'cloud'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function mysqlStoreDescriptor(address: MysqlAddress, options?: MysqlDescriptorOptions): StoreDescriptor {
+  return { kind: 'mysql', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-mysql`: reconstructs the same store `toMysql()`
+ * builds, from a descriptor produced by {@link mysqlStoreDescriptor}.
+ * `opts.binding.client` is required — this store has no client library of
+ * its own and cannot build a connection from `address` alone.
+ */
+export const mysqlStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as MysqlAddress
+  const options = (descriptor.options ?? {}) as MysqlDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<MysqlBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-mysql: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toMysql({
+    ...options,
+    ...(address.table !== undefined && { tableName: address.table }),
+    client: binding.client,
+  })
+}
+
+/** Registers {@link mysqlStoreFactory} under the `'mysql'` kind on `locator`. */
+export function registerMysqlStore(locator: StoreLocator): void {
+  locator.register('mysql', mysqlStoreFactory)
 }

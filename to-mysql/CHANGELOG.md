@@ -1,5 +1,11 @@
 # @noy-db/to-mysql
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `mysqlStoreDescriptor()` / `mysqlStoreFactory` / `registerMysqlStore()` (plus the `MysqlAddress`, `MysqlDescriptorOptions`, `MysqlBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'mysql'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. `address` is `{ database?, table? }`: `table` maps to `tableName`; `database` is identity-only and not consumed by the factory — the connection already carries it. `opts.binding.client` is required because this store does not construct its own connection; resolving without it throws a clear error naming the missing slot. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

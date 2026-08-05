@@ -38,6 +38,24 @@ describe('to-webdav — store-locator descriptor (#56)', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(webdavStoreDescriptor({ baseUrl: 'https://x' }))).toThrow()
   })
+
+  it('forwards the descriptor address into the URL the store actually requests (#58)', async () => {
+    const locator = createStoreLocator()
+    registerWebdavStore(locator)
+    const dav = fakeDav()
+    const seenUrls: string[] = []
+    const fetchSpy: typeof fetch = (async (url: unknown, init?: RequestInit) => {
+      seenUrls.push(String(url))
+      return dav.fetch(url as RequestInfo, init)
+    }) as typeof fetch
+    const descriptor = webdavStoreDescriptor({ baseUrl: 'https://dav.example.com/custom-root', prefix: 'custom-prefix' })
+    const store = await locator.resolve(descriptor, { binding: { fetch: fetchSpy } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const putUrl = seenUrls.find(u => u.includes('/a.json'))
+    expect(putUrl).toContain('dav.example.com/custom-root')
+    expect(putUrl).toContain('custom-prefix')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────
