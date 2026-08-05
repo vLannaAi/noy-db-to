@@ -64,6 +64,16 @@ describe('to-browser-local — store-locator descriptor (#58)', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(browserLocalStoreDescriptor({ prefix: 'p' }))).toThrow()
   })
+
+  it('forwards the descriptor prefix into the actual localStorage key (#58)', async () => {
+    const locator = createStoreLocator()
+    registerBrowserLocalStore(locator)
+    const store = await locator.resolve(browserLocalStoreDescriptor({ prefix: 'custom-locator-prefix' }))
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    const keys = Object.keys(localStorage)
+    expect(keys).toContain('custom-locator-prefix:v:c:a')
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

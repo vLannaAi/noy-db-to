@@ -58,6 +58,25 @@ describe('to-rest — store-locator descriptor (#58)', () => {
     const locator = createStoreLocator()
     expect(() => locator.resolve(restStoreDescriptor({ baseUrl: 'https://x' }))).toThrow()
   })
+
+  it('forwards the descriptor baseUrl into the URL the store actually requests (#58)', async () => {
+    const locator = createStoreLocator()
+    registerRestStore(locator)
+    const harness = restHarness()
+    const store = await locator.resolve(
+      restStoreDescriptor({ baseUrl: 'https://custom-locator-host.example.com' }),
+      {
+        binding: { fetch: harness.fetch },
+        credentials: async () => ({ kind: 'token', token: 'test-key' }),
+      },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(harness.requests.length).toBeGreaterThan(0)
+    for (const req of harness.requests) {
+      expect(req.url).toContain('custom-locator-host.example.com')
+    }
+  })
 })
 
 // ─── Full conformance suite against a descriptor-resolved store ──────

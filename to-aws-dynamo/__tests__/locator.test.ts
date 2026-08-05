@@ -35,6 +35,25 @@ describe('to-aws-dynamo — store-locator descriptor (#58)', () => {
     expect(() => locator.resolve(dynamoStoreDescriptor({ table: 't' }))).toThrow()
   })
 
+  it('forwards the descriptor address into the commands the store actually sends (#58)', async () => {
+    const locator = createStoreLocator()
+    registerDynamoStore(locator)
+    const fake = fakeDynamo()
+    const seenTableNames: string[] = []
+    const spyClient = {
+      async send(command: unknown) {
+        const input = (command as { input: { TableName?: string } }).input
+        if (input?.TableName !== undefined) seenTableNames.push(input.TableName)
+        return fake.client.send(command)
+      },
+    }
+    const descriptor = dynamoStoreDescriptor({ table: 'custom-locator-table' })
+    const store = await locator.resolve(descriptor, { binding: { client: spyClient } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(seenTableNames).toContain('custom-locator-table')
+  })
+
   describe('credentials path (broker seam #479)', () => {
     beforeEach(() => {
       vi.resetModules()
