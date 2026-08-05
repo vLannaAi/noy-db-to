@@ -41,7 +41,17 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, StoreCredentials, StoreCredentialSource, TxOp } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  StoreCredentials,
+  StoreCredentialSource,
+  TxOp,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /**
@@ -473,4 +483,57 @@ function b64encode(input: string): string {
 
 function b64decode(input: string): string {
   return decodeURIComponent(escape(atob(input)))
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class) ──────────────────
+
+/** Serializable location of a DynamoDB store: table + region + endpoint. */
+export interface DynamoAddress {
+  readonly table: string
+  readonly region?: string
+  readonly endpoint?: string
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — a pre-built
+ * document client (shared client, custom middleware, or a test fake).
+ * Never serialized into a pod alongside the descriptor.
+ */
+export interface DynamoBinding {
+  readonly client?: DynamoDocClient
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toAwsDynamo()` store:
+ * `kind: 'aws-dynamo'`, `class: 'cloud'`. Credentialless by construction —
+ * AWS credentials arrive via `StoreCredentialSource` at `resolve()` time
+ * (the #479 broker seam), or implicitly via the SDK's default provider
+ * chain on the device.
+ *
+ * Takes no options argument: this store has no serializable tuning today.
+ */
+export function dynamoStoreDescriptor(address: DynamoAddress): StoreDescriptor {
+  return { kind: 'aws-dynamo', class: 'cloud', address }
+}
+
+/**
+ * `StoreFactory` for `to-aws-dynamo`: reconstructs the same store
+ * `toAwsDynamo()` builds, from a descriptor produced by
+ * {@link dynamoStoreDescriptor}. `opts.credentials` becomes the SDK's
+ * refresh hook; `opts.binding` may carry a pre-built client
+ * ({@link DynamoBinding}), which always wins.
+ */
+export const dynamoStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as DynamoAddress
+  const binding = (opts.binding ?? {}) as DynamoBinding
+  return toAwsDynamo({
+    ...address,
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+    ...(binding.client !== undefined && { client: binding.client }),
+  })
+}
+
+/** Registers {@link dynamoStoreFactory} under the `'aws-dynamo'` kind on `locator`. */
+export function registerDynamoStore(locator: StoreLocator): void {
+  locator.register('aws-dynamo', dynamoStoreFactory)
 }

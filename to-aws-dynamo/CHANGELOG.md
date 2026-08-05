@@ -1,5 +1,11 @@
 # Changelog — to-aws-dynamo
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
+
+- New `dynamoStoreDescriptor()` / `dynamoStoreFactory` / `registerDynamoStore()` — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'aws-dynamo'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. Credentials arrive via a `StoreCredentialSource` of `kind: 'aws'` at `resolve()` time; a device-local pre-built document client rides the `binding` slot and always wins. `address` is `{ table, region?, endpoint? }`; the descriptor takes no `options` argument, as this store has no serializable tuning today. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

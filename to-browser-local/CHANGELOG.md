@@ -1,5 +1,11 @@
 # Changelog — to-browser-local
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
+
+- New `browserLocalStoreDescriptor()` / `browserLocalStoreFactory` / `registerBrowserLocalStore()` — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'browser-local'`, `class: 'browser'`) reconstructs the store via `createStoreLocator()`. The simplest citizen of the tier: `localStorage` needs no credentials and no transport, so both the `binding` and `credentials` slots are ignored at resolve time; `address` is `{ prefix? }` and `options` carries `{ obfuscate?, clockUncertaintyMs? }`. Verified by a descriptor→resolve→full-conformance round-trip, plus a behavioural check that a descriptor's `obfuscate: true` really reaches the store (the resolved store's `localStorage` keys are hashed).
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

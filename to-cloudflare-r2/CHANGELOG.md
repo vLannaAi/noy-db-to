@@ -1,5 +1,11 @@
 # @noy-db/to-cloudflare-r2
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
+
+- New `r2StoreDescriptor()` / `r2StoreFactory` / `registerR2Store()` — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'cloudflare-r2'`, `class: 'cloud'`) reconstructs the store via `createStoreLocator()`. R2 keys are S3-compatible, so credentials arrive via a `StoreCredentialSource` of `kind: 'aws'` at `resolve()` time; a device-local pre-built `S3Client` (a shared R2-pointed client, a Workers binding, or a test fake) rides the `binding` slot and wins over `accountId` + credentials. `endpoint` sits on the `address` because it is location rather than tuning — note it supplements `accountId` rather than replacing it. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))

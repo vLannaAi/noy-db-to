@@ -20,6 +20,17 @@
  * const db = await createNoydb({ store })
  * ```
  *
+ * For a rolling short-lived token, pass `credentials` (the hub's
+ * credential-broker seam) instead of a static header — it is re-read on
+ * every request and wins over any `authorization` header:
+ *
+ * ```ts
+ * const store = toRest({
+ *   baseUrl: 'https://vault.example.com/api',
+ *   credentials: async () => ({ kind: 'token', token: await mintToken() }),
+ * })
+ * ```
+ *
  * ## Wire contract (server: `@noy-db/in-rest` >= 0.6.0-pre.0)
  *
  * | Server response | Client behavior |
@@ -42,7 +53,16 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  ListPageResult,
+  StoreCredentialSource,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 export interface RestStoreOptions {
@@ -53,6 +73,24 @@ export interface RestStoreOptions {
    * fail-closed `authorize` expects (typically `{ authorization: 'Bearer …' }`).
    */
   readonly headers?: Record<string, string>
+  /**
+   * Rolling short-lived credentials source (the hub's #479 credential-broker
+   * seam). Must yield `kind: 'token'`; the token becomes
+   * `Authorization: Bearer <token>` and the source is re-invoked on every
+   * request, so an expiring token refreshes without rebuilding the store.
+   * Takes precedence over any `authorization` key in `headers` —
+   * case-insensitively, so an `Authorization` spelling is overridden too.
+   *
+   * Note the divergence from the other broker consumers: `to-webdav` and
+   * `to-turso` cache the token and re-invoke only inside a refresh-skew
+   * window of `expiresAt`, and the AWS stores hand the source to the SDK,
+   * which memoizes it. `to-rest` does neither — it invokes the source
+   * once per store operation and never consults `expiresAt`. The cost is
+   * real: a broker backed by a remote token endpoint incurs one extra
+   * round-trip per store operation. Wrap such a source in your own cache
+   * if that matters; the store deliberately holds no token state.
+   */
+  readonly credentials?: StoreCredentialSource
   /** Max ms to wait for any single RPC response. Default 30s. */
   readonly timeoutMs?: number
   /** Custom fetch — defaults to `globalThis.fetch`. */
@@ -75,6 +113,28 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
   const fetchImpl = options.fetch ?? globalThis.fetch
   const rpcUrl = `${options.baseUrl.replace(/\/+$/, '')}/rpc`
 
+  // HTTP header names are case-insensitive, but object spread only
+  // overrides an IDENTICAL key: a caller-supplied `Authorization` would
+  // survive alongside the broker's `authorization`, and fetch's `Headers`
+  // then APPENDS rather than replaces ("Bearer A, Bearer B"). Lowercasing
+  // every key once before merging makes precedence genuinely
+  // case-insensitive (same for `Content-Type`).
+  const lower = (h: Record<string, string>): Record<string, string> =>
+    Object.fromEntries(Object.entries(h).map(([k, v]) => [k.toLowerCase(), v]))
+
+  const staticHeaders = lower(headers)
+
+  async function authHeader(): Promise<Record<string, string>> {
+    if (!options.credentials) return {}
+    const creds = await options.credentials()
+    if (creds.kind !== 'token') {
+      throw new Error(
+        `to-rest: credentials of kind '${creds.kind}' are not supported — to-rest authenticates with a bearer token (kind: 'token').`,
+      )
+    }
+    return { authorization: `Bearer ${creds.token}` }
+  }
+
   async function call<T>(method: string, args: readonly unknown[]): Promise<T> {
     // JSON has no `undefined`: a trailing optional arg (expectedVersion,
     // cursor, limit) would serialize as `null` and the server would treat
@@ -84,7 +144,7 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
     while (tuple.length > 0 && tuple[tuple.length - 1] === undefined) tuple.pop()
     const res = await fetchImpl(rpcUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', ...staticHeaders, ...(await authHeader()) },
       body: JSON.stringify({ method, args: tuple }),
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -174,4 +234,63 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
       // No persistent connection today — reserved for keep-alive teardown.
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class) ──────────────────
+
+/** Serializable location of a rest store: the in-rest handler's base URL. */
+export interface RestAddress {
+  readonly baseUrl: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface RestDescriptorOptions {
+  readonly timeoutMs?: number
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time. Both fields are
+ * barred from the descriptor: `fetch` is a function, and `headers` is
+ * where an `authorization` value would otherwise leak. Auth belongs on
+ * `credentials`; `headers` here is for non-auth headers such as tenant
+ * routing or tracing.
+ */
+export interface RestBinding {
+  readonly fetch?: typeof fetch
+  readonly headers?: Record<string, string>
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toRest()` store:
+ * `kind: 'rest'`, `class: 'cloud'`. Credentialless by construction — the
+ * bearer token arrives via a `StoreCredentialSource` of `kind: 'token'`
+ * at `resolve()` time and is re-read on every request.
+ */
+export function restStoreDescriptor(address: RestAddress, options?: RestDescriptorOptions): StoreDescriptor {
+  return { kind: 'rest', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-rest`: reconstructs the same store `toRest()`
+ * builds, from a descriptor produced by {@link restStoreDescriptor}.
+ * `opts.binding` supplies the transport ({@link RestBinding});
+ * `opts.credentials` supplies auth, which wins over any `authorization`
+ * key in `binding.headers`.
+ */
+export const restStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as RestAddress
+  const options = (descriptor.options ?? {}) as RestDescriptorOptions
+  const binding = (opts.binding ?? {}) as RestBinding
+  return toRest({
+    ...address,
+    ...options,
+    ...(binding.headers !== undefined && { headers: binding.headers }),
+    ...(binding.fetch !== undefined && { fetch: binding.fetch }),
+    ...(opts.credentials !== undefined && { credentials: opts.credentials }),
+  })
+}
+
+/** Registers {@link restStoreFactory} under the `'rest'` kind on `locator`. */
+export function registerRestStore(locator: StoreLocator): void {
+  locator.register('rest', restStoreFactory)
 }
