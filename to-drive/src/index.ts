@@ -48,7 +48,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbPodStore } from '@noy-db/hub/to'
+import type { NoydbPodStore, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import { PodVersionConflictError } from '@noy-db/hub/to'
 
 // ── Duck-typed Drive client ──────────────────────────────────────────────
@@ -259,4 +259,89 @@ export function toDrive(options: DriveStoreOptions): NoydbPodStore {
         .map(f => ({ vaultId: f.name.slice(0, -suffix.length), version: f.headRevisionId, size: f.size }))
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, binding-slot tier) ──
+
+/**
+ * Serializable location of a Drive store. `parentId` is the Drive parent
+ * folder id. Omitted means Drive's `appDataFolder` — the store's existing
+ * default, unchanged.
+ */
+export interface DriveAddress {
+  /** Maps to `DriveStoreOptions.parentId`. Omitted means `appDataFolder` (unchanged default). */
+  readonly parentId?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface DriveDescriptorOptions {
+  readonly suffix?: string
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `DriveClient` this store has no way to construct itself, plus the
+ * optional per-device `HandleStore`. Never serialized into a pod alongside
+ * the descriptor.
+ */
+export interface DriveBinding {
+  readonly client: DriveClient
+  /** Per-device handle registry. Omitted leaves the store's in-memory default. */
+  readonly handles?: HandleStore
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toDrive()` store: `kind:
+ * 'drive'`, `class: 'cloud'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live client arrives via `binding.client` at `resolve()` time.
+ */
+export function driveStoreDescriptor(address: DriveAddress, options?: DriveDescriptorOptions): StoreDescriptor {
+  return { kind: 'drive', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * Reconstructs the same store `toDrive()` builds, from a descriptor
+ * produced by {@link driveStoreDescriptor}. `opts.binding.client` is
+ * required — this store has no client library of its own and cannot build
+ * a connection from `address` alone.
+ *
+ * `toDrive()` returns a `NoydbPodStore`, not a `NoydbStore` — this
+ * factory's return type is deliberately NOT narrowed to match the hub's
+ * generic `StoreFactory` shape. Callers that need the six-method contract
+ * wrap the result with `wrapPodStore()` themselves, exactly as this
+ * package's own tests do for `toDrive()` directly.
+ */
+export function driveStoreFactory(
+  descriptor: StoreDescriptor,
+  opts: { binding?: unknown },
+): NoydbPodStore {
+  const address = descriptor.address as DriveAddress
+  const options = (descriptor.options ?? {}) as DriveDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<DriveBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-drive: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toDrive({
+    ...options,
+    ...(address.parentId !== undefined && { parentId: address.parentId }),
+    drive: binding.client,
+    ...(binding.handles !== undefined && { handles: binding.handles }),
+  })
+}
+
+/**
+ * Registers {@link driveStoreFactory} under the `'drive'` kind on
+ * `locator`. The cast is required (not a shape assertion) because
+ * `StoreLocator.register()`'s declared `StoreFactory` type returns
+ * `NoydbStore`, while `driveStoreFactory` deliberately returns the
+ * unnarrowed `NoydbPodStore` — `createStoreLocator()` itself performs no
+ * runtime shape check, it only stores and later invokes the factory.
+ */
+export function registerDriveStore(locator: StoreLocator): void {
+  locator.register('drive', driveStoreFactory as unknown as StoreFactory)
 }

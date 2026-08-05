@@ -1,5 +1,11 @@
 # Changelog — to-nfs
 
+## Unreleased
+
+### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
+
+- New `nfsStoreDescriptor()` / `nfsStoreFactory` / `registerNfsStore()` (plus the `NfsAddress`, `NfsDescriptorOptions`, `NfsBinding` types) — a credentialless, JSON-serializable `StoreDescriptor` (`kind: 'nfs'`, `class: 'lan'`) reconstructs the store via `createStoreLocator()`. `address` is `{ server?, export? }`, the logical `server:/export` identity — identity-only, not consumed by the factory. `options` is `{ onNolock? }`, the serializable `'warn'`/`'error'` tuning. `opts.binding.mountPath` is required because where an export is mounted is device-local and never travels in a descriptor — `toNfs()` fails fast without it; resolving without it throws a clear error naming the missing slot. `binding.mountDetector` carries the existing test-injection seam through unchanged. Verified by a descriptor→resolve→full-conformance round-trip.
+
 ## 0.4.0
 
 ### Hub 0.6.0-pre.1 adopted, conformance suite de-vendored ([#19](https://github.com/vLannaAi/noy-db-to/issues/19))
