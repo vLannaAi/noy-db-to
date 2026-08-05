@@ -39,7 +39,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore } from '@noy-db/hub/to'
+import type { NoydbStore, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
 import type { PostgresClient, PostgresStoreOptions } from '@noy-db/to-postgres'
 import { toPostgres } from '@noy-db/to-postgres'
 
@@ -69,4 +69,74 @@ export function toSupabase(options: SupabaseStoreOptions): NoydbStore {
       auth: { kind: 'api-key', required: true, flow: 'static' },
     },
   }
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a Supabase-Postgres store. `projectRef` and
+ * `schema` are identity-only — the connection lives in the injected
+ * `binding.client`, so the factory does not consume them.
+ */
+export interface SupabaseAddress {
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly projectRef?: string
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly schema?: string
+  /** Maps to `SupabaseStoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface SupabaseDescriptorOptions {
+  readonly autoMigrate?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `PostgresClient` this store has no way to construct itself. Never
+ * serialized into a pod alongside the descriptor.
+ */
+export interface SupabaseBinding {
+  readonly client: PostgresClient
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toSupabase()` store:
+ * `kind: 'supabase'`, `class: 'cloud'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function supabaseStoreDescriptor(address: SupabaseAddress, options?: SupabaseDescriptorOptions): StoreDescriptor {
+  return { kind: 'supabase', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-supabase`: reconstructs the same store
+ * `toSupabase()` builds, from a descriptor produced by
+ * {@link supabaseStoreDescriptor}. `opts.binding.client` is required —
+ * this store has no client library of its own and cannot build a
+ * connection from `address` alone.
+ */
+export const supabaseStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as SupabaseAddress
+  const options = (descriptor.options ?? {}) as SupabaseDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<SupabaseBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-supabase: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toSupabase({
+    client: binding.client,
+    ...(address.table !== undefined && { tableName: address.table }),
+    ...options,
+  })
+}
+
+/** Registers {@link supabaseStoreFactory} under the `'supabase'` kind on `locator`. */
+export function registerSupabaseStore(locator: StoreLocator): void {
+  locator.register('supabase', supabaseStoreFactory)
 }

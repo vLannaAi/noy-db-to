@@ -31,7 +31,16 @@
  * @packageDocumentation
  */
 
-import type { NoydbStore, EncryptedEnvelope, VaultSnapshot, TxOp, ListPageResult } from '@noy-db/hub/to'
+import type {
+  NoydbStore,
+  EncryptedEnvelope,
+  VaultSnapshot,
+  TxOp,
+  ListPageResult,
+  StoreDescriptor,
+  StoreFactory,
+  StoreLocator,
+} from '@noy-db/hub/to'
 import { ConflictError } from '@noy-db/hub/to'
 
 /** Duck-typed subset of the node-postgres `Client` API. */
@@ -253,4 +262,74 @@ export function toPostgres(options: PostgresStoreOptions): NoydbStore {
   }
 
   return store
+}
+
+// ─── Store-locator descriptor (#58 — `cloud` class, opaque-client tier) ──
+
+/**
+ * Serializable location of a Postgres store. `database` and `schema` are
+ * identity-only — the connection lives in the injected `binding.client`,
+ * so the factory does not consume them.
+ */
+export interface PostgresAddress {
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly database?: string
+  /** Identity-only: not consumed by the factory (the connection carries it). */
+  readonly schema?: string
+  /** Maps to `PostgresStoreOptions.tableName`. Default `'noydb_envelopes'` when omitted. */
+  readonly table?: string
+}
+
+/** Serializable tuning carried on the descriptor (never credentials). */
+export interface PostgresDescriptorOptions {
+  readonly autoMigrate?: boolean
+}
+
+/**
+ * Device-local supplement resolved at `resolve()` time — the live
+ * `PostgresClient` this store has no way to construct itself. Never
+ * serialized into a pod alongside the descriptor.
+ */
+export interface PostgresBinding {
+  readonly client: PostgresClient
+}
+
+/**
+ * Builds the `StoreDescriptor` form of a `toPostgres()` store:
+ * `kind: 'postgres'`, `class: 'cloud'`, with the identity address and the
+ * serializable tuning as `options`. Credentialless by construction — the
+ * live connection arrives via `binding.client` at `resolve()` time.
+ */
+export function postgresStoreDescriptor(address: PostgresAddress, options?: PostgresDescriptorOptions): StoreDescriptor {
+  return { kind: 'postgres', class: 'cloud', address, ...(options !== undefined && { options }) }
+}
+
+/**
+ * `StoreFactory` for `to-postgres`: reconstructs the same store
+ * `toPostgres()` builds, from a descriptor produced by
+ * {@link postgresStoreDescriptor}. `opts.binding.client` is required —
+ * this store has no client library of its own and cannot build a
+ * connection from `address` alone.
+ */
+export const postgresStoreFactory: StoreFactory = (descriptor, opts) => {
+  const address = descriptor.address as PostgresAddress
+  const options = (descriptor.options ?? {}) as PostgresDescriptorOptions
+  const binding = (opts.binding ?? {}) as Partial<PostgresBinding>
+  if (!binding.client) {
+    throw new Error(
+      '@noy-db/to-postgres: resolving this descriptor requires `binding.client` — ' +
+      'this store does not construct its own connection. ' +
+      'Pass one: locator.resolve(descriptor, { binding: { client } }).',
+    )
+  }
+  return toPostgres({
+    client: binding.client,
+    ...(address.table !== undefined && { tableName: address.table }),
+    ...options,
+  })
+}
+
+/** Registers {@link postgresStoreFactory} under the `'postgres'` kind on `locator`. */
+export function registerPostgresStore(locator: StoreLocator): void {
+  locator.register('postgres', postgresStoreFactory)
 }
