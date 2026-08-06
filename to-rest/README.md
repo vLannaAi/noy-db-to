@@ -8,7 +8,7 @@ REST/HTTP adapter for [noy-db](https://github.com/vLannaAi/noy-db) — a `NoydbS
 Every store method is serialized as `POST {baseUrl}/rpc` with `{ method, args }` — the positional
 args tuple, exactly as the `NoydbStore` signature. On the other end, an `@noy-db/in-rest`
 `createRestHandler` funnels the RPC into its own backing store. The server forwards encrypted
-envelopes verbatim: it never sees a passphrase or plaintext.
+envelopes verbatim: it never sees a secret or plaintext.
 
 ```ts
 // Server (anywhere you can run a request handler):

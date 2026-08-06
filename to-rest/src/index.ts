@@ -8,7 +8,7 @@
  * `NoydbStore` signature. The server (an `@noy-db/in-rest`
  * `createRestHandler`) funnels the RPC into its own backing store —
  * it forwards ciphertext envelopes verbatim and never sees a
- * passphrase or plaintext (noy-db#963 finding-2 architecture).
+ * secret or plaintext (noy-db#963 finding-2 architecture).
  *
  * ```ts
  * import { toRest } from '@noy-db/to-rest'
