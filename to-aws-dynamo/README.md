@@ -23,13 +23,13 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'ap-southeast-1' }))
 
 const db = await createNoydb({
-  adapter: toAwsDynamo({ client, tableName: 'noydb-prod' }),
-  userId: 'alice',
-  passphrase: process.env.NOYDB_PASSPHRASE!,
+  store: toAwsDynamo({ client, tableName: 'noydb-prod' }),
+  user: 'alice',
+  secret: process.env.NOYDB_SECRET!,
 })
 ```
 
-Uses a single-table design with composite keys `(PK=compartment, SK=collection#id)`. DynamoDB only ever sees encrypted envelopes — the ciphertext is useless without the user's passphrase.
+Uses a single-table design with composite keys `(PK=compartment, SK=collection#id)`. DynamoDB only ever sees encrypted envelopes — the ciphertext is useless without the user's secret.
 
 ## DynamoDB table schema
 

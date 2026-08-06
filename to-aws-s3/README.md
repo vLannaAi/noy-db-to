@@ -22,13 +22,13 @@ import { S3Client } from '@aws-sdk/client-s3'
 const client = new S3Client({ region: 'ap-southeast-1' })
 
 const db = await createNoydb({
-  adapter: toAwsS3({ client, bucket: 'noydb-prod', prefix: 'tenant-a/' }),
-  userId: 'alice',
-  passphrase: process.env.NOYDB_PASSPHRASE!,
+  store: toAwsS3({ client, bucket: 'noydb-prod', prefix: 'tenant-a/' }),
+  user: 'alice',
+  secret: process.env.NOYDB_SECRET!,
 })
 ```
 
-Each record becomes an S3 object containing only a ciphertext envelope. S3 never sees plaintext — even with full bucket access, an attacker learns nothing without the user's passphrase.
+Each record becomes an S3 object containing only a ciphertext envelope. S3 never sees plaintext — even with full bucket access, an attacker learns nothing without the user's secret.
 
 Best suited for:
 
