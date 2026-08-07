@@ -43,10 +43,32 @@ export interface NfsStoreOptions {
   readonly onNolock?: 'warn' | 'error'
   /** Override the mount detector — injection seam for tests. */
   readonly mountDetector?: MountDetector
+  /**
+   * Logical NFS server this store believes it is talking to. Supply with
+   * {@link NfsStoreOptions.export} to cross-check the claim against the
+   * device the mount actually came from (#70). Both halves are required —
+   * a half-stated identity is not checkable.
+   */
+  readonly server?: string
+  /** Logical NFS export path. See {@link NfsStoreOptions.server}. */
+  readonly export?: string
+  /**
+   * On a `server:/export` ↔ mounted-device mismatch, behavior is `'warn'`
+   * (default) or `'error'`. Mirrors {@link NfsStoreOptions.onNolock}, and
+   * defaults to warn for the same reason: an existing consumer whose
+   * descriptor is merely imprecise must not break on upgrade.
+   */
+  readonly onDeviceMismatch?: 'warn' | 'error'
 }
 
 export interface MountInfo {
   readonly exists: boolean
+  /**
+   * The mount's device string — `server:/export` for an NFS mount,
+   * `/dev/...` for a local one. `parts[0]` of the `/proc/mounts` line.
+   * Absent when the detector cannot determine it.
+   */
+  readonly device?: string
   readonly fstype?: string
   readonly options?: readonly string[]
 }
@@ -66,10 +88,11 @@ export async function detectMount(mountPath: string): Promise<MountInfo> {
     for (const line of contents.split('\n')) {
       const parts = line.split(/\s+/)
       if (parts.length < 4) continue
-      const [, mp, fstype, optsStr] = parts
+      const [device, mp, fstype, optsStr] = parts
       if (mp === normalized) {
         return {
           exists: true,
+          device: device!,
           fstype: fstype!,
           options: optsStr!.split(','),
         }
@@ -82,6 +105,22 @@ export async function detectMount(mountPath: string): Promise<MountInfo> {
 }
 
 const NFS_FSTYPES = new Set(['nfs', 'nfs4', 'nfs3'])
+
+/**
+ * Canonical form of a `server:/export` device string for comparison.
+ * Only trailing slashes on the export are normalized away — `/exports/v`
+ * and `/exports/v/` are the same export. Host case is left alone: the
+ * comparison is a diagnostic, and silently equating hosts that differ only
+ * in case would be a guess about DNS this store has no business making.
+ */
+function canonicalDevice(device: string): string {
+  return device.replace(/\/+$/, '')
+}
+
+/** Marks the device-mismatch risk so severity handling can find its own message. */
+const DEVICE_MISMATCH_PREFIX = 'Mount device mismatch:'
+/** Marks the nolock risk for the same reason. */
+const NOLOCK_MARKER = '`nolock`'
 
 /**
  * Synchronous diagnostics run at store construction. Returns a list of
@@ -109,6 +148,22 @@ export async function runMountDiagnostics(
       `If you intended a local filesystem, use a local file store instead.`,
     )
   }
+  // #70 — the descriptor's logical identity vs. what is actually mounted.
+  // Requires both halves of the address AND a device from the detector: a
+  // half-stated claim is not checkable, and a detector that cannot report a
+  // device (every pre-#70 implementation, including any a consumer injected)
+  // must not start manufacturing mismatches.
+  if (options.server !== undefined && options.export !== undefined && info.device !== undefined) {
+    const claimed = canonicalDevice(`${options.server}:${options.export}`)
+    if (canonicalDevice(info.device) !== claimed) {
+      risks.push(
+        `${DEVICE_MISMATCH_PREFIX} this store claims "${claimed}", but ` +
+        `"${options.mountPath}" is mounted from "${info.device}". Writes are ` +
+        `landing on the second, not the first. Either the descriptor names the ` +
+        `wrong export, or \`binding.mountPath\` points at the wrong mount.`,
+      )
+    }
+  }
   if (info.options?.includes('nolock')) {
     risks.push(
       `NFS mount "${options.mountPath}" has the \`nolock\` option set. ` +
@@ -134,6 +189,7 @@ export async function runMountDiagnostics(
  */
 export function toNfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): Promise<{ risks: string[]; info: MountInfo }> } {
   const onNolock = options.onNolock ?? 'warn'
+  const onDeviceMismatch = options.onDeviceMismatch ?? 'warn'
   const base = jsonFile({ dir: options.mountPath })
   let diagnosed: Promise<{ risks: string[]; info: MountInfo }> | null = null
 
@@ -141,11 +197,21 @@ export function toNfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): P
     if (!diagnosed) {
       diagnosed = (async () => {
         const report = await runMountDiagnostics(options)
-        const nolock = report.info.options?.includes('nolock')
+
+        // Each escalation selects its OWN message by predicate. This used to
+        // read `risks[0]`, which was correct only while nolock was the sole
+        // escalating risk and happened to sit first — adding the #70 device
+        // check would have had `onNolock: 'error'` throw the device message.
+        const mismatch = report.risks.find(r => r.startsWith(DEVICE_MISMATCH_PREFIX))
+        if (mismatch) {
+          if (onDeviceMismatch === 'error') throw new Error(`[@noy-db/to-nfs] ${mismatch}`)
+          console.warn(`[@noy-db/to-nfs] ${mismatch}`)
+        }
+
+        const nolock = report.risks.find(r => r.includes(NOLOCK_MARKER))
         if (nolock) {
-          const msg = report.risks[0]
-          if (onNolock === 'error') throw new Error(`[@noy-db/to-nfs] ${msg}`)
-          console.warn(`[@noy-db/to-nfs] ${msg}`)
+          if (onNolock === 'error') throw new Error(`[@noy-db/to-nfs] ${nolock}`)
+          console.warn(`[@noy-db/to-nfs] ${nolock}`)
         }
         return report
       })()
@@ -194,19 +260,30 @@ export function toNfs(options: NfsStoreOptions): NoydbStore & { diagnostics(): P
 
 /**
  * Serializable location of an NFS store. `server` and `export` describe
- * the logical `server:/export` identity. Identity-only — the factory does
- * not consume them; `binding.mountPath` is what the store actually opens.
+ * the logical `server:/export` identity.
+ *
+ * They do not OPEN anything — `binding.mountPath` is what the store opens,
+ * because where an export is mounted is device-local and must never travel
+ * in a pod. But since #70 they are no longer inert: when both are present
+ * they are cross-checked against the device the mount actually came from,
+ * which turns the identity from a decorative claim into a checked
+ * invariant. See {@link NfsDescriptorOptions.onDeviceMismatch}.
  */
 export interface NfsAddress {
-  /** Identity-only: not consumed by the factory (`binding.mountPath` is what opens). */
+  /** Logical NFS server. Cross-checked against the mount device (#70). */
   readonly server?: string
-  /** Identity-only: not consumed by the factory (`binding.mountPath` is what opens). */
+  /** Logical NFS export path. Cross-checked against the mount device (#70). */
   readonly export?: string
 }
 
 /** Serializable tuning carried on the descriptor (never credentials). */
 export interface NfsDescriptorOptions {
   readonly onNolock?: 'warn' | 'error'
+  /**
+   * Severity of an `address` ↔ mount-device mismatch: `'warn'` (default)
+   * or `'error'`. See {@link NfsStoreOptions.onDeviceMismatch}.
+   */
+  readonly onDeviceMismatch?: 'warn' | 'error'
 }
 
 /**
@@ -237,7 +314,8 @@ export function nfsStoreDescriptor(address: NfsAddress, options?: NfsDescriptorO
  * travels in a descriptor.
  */
 export const nfsStoreFactory: StoreFactory = (descriptor, opts) => {
-  const { onNolock } = (descriptor.options ?? {}) as NfsDescriptorOptions
+  const { onNolock, onDeviceMismatch } = (descriptor.options ?? {}) as NfsDescriptorOptions
+  const { server, export: exportPath } = (descriptor.address ?? {}) as NfsAddress
   const binding = (opts.binding ?? {}) as Partial<NfsBinding>
   if (!binding.mountPath) {
     throw new Error(
@@ -248,6 +326,11 @@ export const nfsStoreFactory: StoreFactory = (descriptor, opts) => {
   }
   return toNfs({
     ...(onNolock !== undefined && { onNolock }),
+    ...(onDeviceMismatch !== undefined && { onDeviceMismatch }),
+    // The address does not open the store, but it is what the #70
+    // cross-check compares the mounted device against.
+    ...(server !== undefined && { server }),
+    ...(exportPath !== undefined && { export: exportPath }),
     ...(binding.mountDetector !== undefined && { mountDetector: binding.mountDetector }),
     mountPath: binding.mountPath,
   })
