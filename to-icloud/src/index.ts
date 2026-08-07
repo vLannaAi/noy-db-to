@@ -11,11 +11,11 @@
  * `@noy-db/to-file` pointed at an iCloud Drive directory technically
  * works — until one of three iCloud-specific behaviors bites you:
  *
- *   1. **On-demand eviction.** iCloud may evict the file to cloud-only
- *      storage, leaving a `.icloud` stub. `readFile()` on the stub
- *      either throws ENOENT or returns stub metadata. This store
- *      detects the stub, nudges the OS to redownload (via `xattr` on
- *      macOS), and retries.
+ *   1. **On-demand eviction.** iCloud may evict a file's contents to
+ *      cloud-only storage. Two shapes, and which one you get depends on
+ *      the macOS version — see *Eviction shapes* below. This store
+ *      handles both: the ordinary read path covers modern dataless
+ *      eviction, and an explicit stub branch covers the legacy shape.
  *   2. **Conflict files.** Parallel writes from two devices create
  *      `name (device conflicted copy DATE).noydb`. This store detects
  *      those files and raises `PodVersionConflictError`, giving the
@@ -24,6 +24,33 @@
  *      not mean the bytes are on Apple's servers. `ping()` reports
  *      on upload status so callers can wait before considering a
  *      write durable.
+ *
+ * ## Eviction shapes — dataless (modern) vs. `.icloud` stub (legacy)
+ *
+ * Observed on macOS Sequoia (Darwin 24.6) against a genuine synced
+ * iCloud Drive folder, after `brctl evict` on a fully-uploaded file:
+ *
+ * - **No `.name.icloud` stub is created.** The canonical file stays
+ *   exactly where it was.
+ * - It becomes **APFS-dataless**: `stat`/`ls` keep reporting the full
+ *   logical size while `du` reports 0 bytes actually on disk.
+ * - A plain `read()` **blocks transparently** while the kernel and
+ *   `fileproviderd` rehydrate the content, then succeeds. For a 195 KB
+ *   bundle that was ~0.7 s.
+ *
+ * So on current macOS the stub-detection sequence below (`stat(path)` →
+ * null → `stat(path + '.icloud')` → `triggerDownload`) **never fires**:
+ * `stat(path)` succeeds and the ordinary read just works. The store is
+ * functionally correct there via its normal path, and the stub branch is
+ * the *legacy* shape — older macOS, and other sync surfaces that still
+ * materialise a separate stub file. It is kept for exactly that reason,
+ * not because it is the common case.
+ *
+ * The practical consequence for callers is latency, not errors: a read
+ * of an evicted bundle can block on the network with no signal that it
+ * is about to. Distinguishing evicted-dataless from locally-present
+ * needs a `st_blocks`-vs-logical-size comparison, which this store's
+ * duck-typed `ICloudFs` does not currently expose — see #15.
  *
  * ## Scope
  *
@@ -50,7 +77,11 @@ export interface ICloudFs {
   unlink(path: string): Promise<void>
   readdir(path: string): Promise<string[]>
   stat(path: string): Promise<{ mtimeMs: number; size: number } | null>
-  /** macOS-only: force iCloud to materialise an evicted `.icloud` stub. */
+  /**
+   * macOS-only: force iCloud to materialise a LEGACY `.icloud` stub.
+   * Unused on modern macOS, where eviction is dataless-in-place and a
+   * plain `readFile` rehydrates transparently (#15).
+   */
   triggerDownload?(path: string): Promise<void>
 }
 
@@ -68,7 +99,11 @@ function fileName(vault: string, suffix: string): string {
 }
 
 function isStub(name: string): boolean {
-  // macOS writes `<name>.icloud` stubs when offloading files.
+  // The LEGACY offload shape: a separate `<name>.icloud` placeholder file.
+  // Modern macOS (verified on Darwin 24.6) does not write one — it makes
+  // the canonical file APFS-dataless in place, so this never matches there.
+  // Kept for older macOS and other sync surfaces. See the Eviction shapes
+  // section in the module docblock.
   return name.endsWith('.icloud')
 }
 
@@ -92,11 +127,14 @@ export function toIcloud(options: ICloudStoreOptions): NoydbPodStore {
   }
 
   async function stubAwareRead(path: string): Promise<Uint8Array | null> {
-    // Direct read first.
+    // Direct read first. On modern macOS this is also the EVICTION path:
+    // an evicted bundle is dataless-in-place, so the read succeeds after
+    // blocking for rehydration and nothing below ever runs. The cost is
+    // latency, not failure.
     let bytes = await fs.readFile(path)
     if (bytes !== null) return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
 
-    // Check for an adjacent `.icloud` stub and try to materialise it.
+    // Legacy shape only: an adjacent `.icloud` placeholder to materialise.
     const stubPath = `${path}.icloud`
     const stubExists = await fs.stat(stubPath)
     if (!stubExists) return null
@@ -137,7 +175,10 @@ export function toIcloud(options: ICloudStoreOptions): NoydbPodStore {
       const path = await pathFor(vaultId)
       const stat = await fs.stat(path)
       if (!stat) {
-        // Perhaps only a stub exists — detect and trigger.
+        // No canonical file. On modern macOS an evicted bundle still
+        // stats fine (dataless-in-place), so reaching here means the
+        // bundle is genuinely absent OR this is a legacy-stub surface.
+        // Check for the stub before concluding "missing".
         const stubStat = await fs.stat(`${path}.icloud`)
         if (!stubStat) return null
         const bytes = await stubAwareRead(path)

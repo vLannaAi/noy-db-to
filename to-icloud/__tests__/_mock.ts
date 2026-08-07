@@ -1,6 +1,16 @@
 import type { ICloudFs } from '../src/index.js'
 
-/** In-memory iCloud-Drive fs mock (incl. .icloud stub eviction) — extracted from to-icloud.test.ts for the conformance suite (#26). */
+/**
+ * In-memory iCloud-Drive fs mock — extracted from to-icloud.test.ts for the
+ * conformance suite (#26).
+ *
+ * `evict()` here simulates the LEGACY `.icloud`-stub shape, which is what
+ * exercises the store's stub branch. Modern macOS evicts dataless-in-place
+ * instead: the file keeps stat'ing at full size and a plain read blocks,
+ * then succeeds. That shape needs no store logic at all, so there is
+ * nothing for a mock to stand in for — it is the ordinary read path with
+ * latency (#15). Do not read this mock as a model of current macOS.
+ */
 export function mockFs(): ICloudFs & {
   files: Map<string, { bytes: Uint8Array; mtime: number; size: number }>
   stubs: Set<string>
