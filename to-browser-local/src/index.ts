@@ -389,9 +389,13 @@ export function browserLocalStoreDescriptor(
  * {@link browserLocalStoreDescriptor}.
  */
 export const browserLocalStoreFactory: StoreFactory = (descriptor) => {
-  const address = descriptor.address as BrowserLocalAddress
-  const options = (descriptor.options ?? {}) as BrowserLocalDescriptorOptions
-  return toBrowserLocal({ ...address, ...options })
+  const { prefix } = descriptor.address as BrowserLocalAddress
+  const { obfuscate, clockUncertaintyMs } = (descriptor.options ?? {}) as BrowserLocalDescriptorOptions
+  return toBrowserLocal({
+    ...(prefix !== undefined && { prefix }),
+    ...(obfuscate !== undefined && { obfuscate }),
+    ...(clockUncertaintyMs !== undefined && { clockUncertaintyMs }),
+  })
 }
 
 /** Registers {@link browserLocalStoreFactory} under the `'browser-local'` kind on `locator`. */

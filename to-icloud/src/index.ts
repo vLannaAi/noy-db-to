@@ -295,7 +295,7 @@ export function icloudStoreFactory(
   opts: { binding?: unknown },
 ): NoydbPodStore {
   const address = descriptor.address as ICloudAddress
-  const options = (descriptor.options ?? {}) as ICloudDescriptorOptions
+  const { suffix } = (descriptor.options ?? {}) as ICloudDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<ICloudBinding>
   if (!binding.client) {
     throw new Error(
@@ -305,7 +305,7 @@ export function icloudStoreFactory(
     )
   }
   return toIcloud({
-    ...options,
+    ...(suffix !== undefined && { suffix }),
     folder: address.folder,
     fs: binding.client,
   })

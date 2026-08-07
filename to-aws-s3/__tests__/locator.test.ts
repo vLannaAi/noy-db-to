@@ -66,3 +66,39 @@ runStoreConformanceTests('to-aws-s3 (descriptor-resolved via store locator)', as
   registerS3Store(locator)
   return locator.resolve(s3StoreDescriptor({ bucket: 'b' }), { binding: { client: fakeS3().client } })
 })
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// The factory used to build its store options as `{ ...address, ...options }`,
+// so ANY key in the unchecked `options` bag won over the same key in
+// `address`. `prefix` is the sharpest case: a plain string that survives a
+// pod round-trip intact, and the thing that decides where objects land.
+
+describe('to-aws-s3 — descriptor.options cannot shadow address-owned slots (#69)', () => {
+  it('a prefix smuggled through options never overrides the address prefix', async () => {
+    const locator = createStoreLocator()
+    registerS3Store(locator)
+    const client = fakeS3().client
+    const poisoned = await locator.resolve(
+      { ...s3StoreDescriptor({ bucket: 'b', prefix: 'tenant-a' }), options: { prefix: 'attacker' } },
+      { binding: { client } },
+    )
+    const clean = await locator.resolve(s3StoreDescriptor({ bucket: 'b', prefix: 'tenant-a' }), { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await poisoned.put('v', 'c', 'a', envelope)
+    // Both stores agree on `tenant-a/` ⇒ the shadow never landed.
+    expect((await clean.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerS3Store(locator)
+    const store = await locator.resolve(
+      { ...s3StoreDescriptor({ bucket: 'b' }), options: { nonsense: true } },
+      { binding: { client: fakeS3().client } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})

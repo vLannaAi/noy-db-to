@@ -317,7 +317,7 @@ export function driveStoreFactory(
   opts: { binding?: unknown },
 ): NoydbPodStore {
   const address = descriptor.address as DriveAddress
-  const options = (descriptor.options ?? {}) as DriveDescriptorOptions
+  const { suffix } = (descriptor.options ?? {}) as DriveDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<DriveBinding>
   if (!binding.client) {
     throw new Error(
@@ -327,7 +327,7 @@ export function driveStoreFactory(
     )
   }
   return toDrive({
-    ...options,
+    ...(suffix !== undefined && { suffix }),
     ...(address.parentId !== undefined && { parentId: address.parentId }),
     drive: binding.client,
     ...(binding.handles !== undefined && { handles: binding.handles }),

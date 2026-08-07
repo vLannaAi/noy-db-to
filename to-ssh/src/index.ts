@@ -276,7 +276,7 @@ export function sshStoreDescriptor(address: SshAddress, options?: SshDescriptorO
  */
 export const sshStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as SshAddress
-  const options = (descriptor.options ?? {}) as SshDescriptorOptions
+  const { name } = (descriptor.options ?? {}) as SshDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<SshBinding>
   if (!binding.client) {
     throw new Error(
@@ -286,7 +286,7 @@ export const sshStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSsh({
-    ...options,
+    ...(name !== undefined && { name }),
     ...(address.path !== undefined && { remotePath: address.path }),
     sftp: binding.client,
   })

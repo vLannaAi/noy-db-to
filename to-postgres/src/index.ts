@@ -313,7 +313,7 @@ export function postgresStoreDescriptor(address: PostgresAddress, options?: Post
  */
 export const postgresStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as PostgresAddress
-  const options = (descriptor.options ?? {}) as PostgresDescriptorOptions
+  const { autoMigrate } = (descriptor.options ?? {}) as PostgresDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<PostgresBinding>
   if (!binding.client) {
     throw new Error(
@@ -323,7 +323,7 @@ export const postgresStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toPostgres({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
     ...(address.table !== undefined && { tableName: address.table }),
     client: binding.client,
   })

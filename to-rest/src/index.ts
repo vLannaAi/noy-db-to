@@ -278,12 +278,12 @@ export function restStoreDescriptor(address: RestAddress, options?: RestDescript
  * key in `binding.headers`.
  */
 export const restStoreFactory: StoreFactory = (descriptor, opts) => {
-  const address = descriptor.address as RestAddress
-  const options = (descriptor.options ?? {}) as RestDescriptorOptions
+  const { baseUrl } = descriptor.address as RestAddress
+  const { timeoutMs } = (descriptor.options ?? {}) as RestDescriptorOptions
   const binding = (opts.binding ?? {}) as RestBinding
   return toRest({
-    ...address,
-    ...options,
+    baseUrl,
+    ...(timeoutMs !== undefined && { timeoutMs }),
     ...(binding.headers !== undefined && { headers: binding.headers }),
     ...(binding.fetch !== undefined && { fetch: binding.fetch }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),

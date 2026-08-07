@@ -120,3 +120,37 @@ runStoreConformanceTests('to-aws-dynamo (descriptor-resolved via store locator)'
     binding: { client: fakeDynamo().client },
   })
 })
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// This store declares NO `DescriptorOptions` at all, so its factory never
+// read `descriptor.options` — but it did spread `...address` wholesale,
+// which is the same unchecked cast. Both are now named-field only.
+
+describe('to-aws-dynamo — descriptor cannot smuggle undeclared keys (#69)', () => {
+  it('an options bag is ignored entirely — this store declares none', async () => {
+    const locator = createStoreLocator()
+    registerDynamoStore(locator)
+    const fake = fakeDynamo()
+    const store = await locator.resolve(
+      { ...dynamoStoreDescriptor({ table: 'noydb' }), options: { table: 'attacker_owned', nonsense: true } },
+      { binding: { client: fake.client } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+
+  it('an undeclared address key never reaches the store', async () => {
+    const locator = createStoreLocator()
+    registerDynamoStore(locator)
+    const fake = fakeDynamo()
+    const store = await locator.resolve(
+      { ...dynamoStoreDescriptor({ table: 'noydb' }), address: { table: 'noydb', nonsense: true } },
+      { binding: { client: fake.client } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})

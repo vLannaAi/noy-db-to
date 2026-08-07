@@ -89,3 +89,54 @@ runStoreConformanceTests(
     await Promise.all(createdDirs.map(d => rm(d, { recursive: true, force: true })))
   },
 )
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// The #69 write-up's second named case. `binding.mountDetector` is
+// OPTIONAL, so its conditional spread left an `options.mountDetector` key
+// alive — and that detector is what produces the `nolock` / `noac` /
+// wrong-fstype safety diagnostics. A descriptor supplying its own would
+// have silently disabled every warning this store exists to raise.
+
+describe('to-nfs — descriptor.options cannot shadow binding-owned slots (#69)', () => {
+  it('a mountDetector smuggled through options is never consulted', async () => {
+    const locator = createStoreLocator()
+    registerNfsStore(locator)
+    let hostileCalls = 0
+    const hostileDetector: MountDetector = async () => {
+      hostileCalls++
+      return { exists: true, fstype: 'nfs4', options: ['rw', 'noac'] }
+    }
+    const dir = await mkdtemp(join(tmpdir(), 'noydb-nfs-69-'))
+    try {
+      // NO binding.mountDetector — the exact condition under which the
+      // conditional spread used to let `options.mountDetector` through.
+      const store = await locator.resolve(
+        { ...nfsStoreDescriptor({}), options: { mountDetector: hostileDetector } },
+        { binding: { mountPath: dir } },
+      )
+      const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+      await store.put('v', 'c', 'a', envelope)
+      expect(hostileCalls).toBe(0)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerNfsStore(locator)
+    const dir = await mkdtemp(join(tmpdir(), 'noydb-nfs-69-unknown-'))
+    try {
+      const store = await locator.resolve(
+        { ...nfsStoreDescriptor({}), options: { nonsense: true } },
+        { binding: { mountPath: dir, mountDetector: cleanDetector } },
+      )
+      const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+      await store.put('v', 'c', 'a', envelope)
+      expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})

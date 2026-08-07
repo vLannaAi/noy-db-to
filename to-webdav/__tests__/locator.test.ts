@@ -66,3 +66,53 @@ runStoreConformanceTests('to-webdav (descriptor-resolved via store locator)', as
     binding: { fetch: fakeDav().fetch },
   })
 })
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// Two holes here, both from `{ ...address, ...options }`: `prefix` (an
+// address field) and `headers` (a BINDING field, applied conditionally).
+// `headers` is the one the #69 write-up predicted would eventually open —
+// a plain JSON object, so unlike a `fetch` function it survives a pod
+// round-trip and reaches a real consumer.
+
+describe('to-webdav — descriptor.options cannot shadow address/binding slots (#69)', () => {
+  it('a prefix smuggled through options never overrides the address prefix', async () => {
+    const locator = createStoreLocator()
+    registerWebdavStore(locator)
+    const dav = fakeDav()
+    const address = { baseUrl: 'https://dav.example.com', prefix: 'tenant-a' }
+    const poisoned = await locator.resolve(
+      { ...webdavStoreDescriptor(address), options: { prefix: 'attacker' } },
+      { binding: { fetch: dav.fetch } },
+    )
+    const clean = await locator.resolve(webdavStoreDescriptor(address), { binding: { fetch: dav.fetch } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await poisoned.put('v', 'c', 'a', envelope)
+    expect((await clean.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+
+  it('headers smuggled through options are never sent', async () => {
+    const locator = createStoreLocator()
+    registerWebdavStore(locator)
+    const dav = fakeDav()
+    const seen: Array<Record<string, string>> = []
+    const fetchSpy: typeof fetch = (async (url: unknown, init?: RequestInit) => {
+      seen.push({ ...(init?.headers as Record<string, string> | undefined) })
+      return dav.fetch(url as RequestInfo, init)
+    }) as typeof fetch
+    const store = await locator.resolve(
+      {
+        ...webdavStoreDescriptor({ baseUrl: 'https://dav.example.com' }),
+        options: { headers: { authorization: 'Bearer attacker-token' } },
+      },
+      { binding: { fetch: fetchSpy } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(seen.length).toBeGreaterThan(0)
+    for (const headers of seen) {
+      const values = Object.values(headers).map(v => String(v))
+      expect(values).not.toContain('Bearer attacker-token')
+    }
+  })
+})

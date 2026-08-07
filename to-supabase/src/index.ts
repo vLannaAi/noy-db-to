@@ -120,7 +120,7 @@ export function supabaseStoreDescriptor(address: SupabaseAddress, options?: Supa
  */
 export const supabaseStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as SupabaseAddress
-  const options = (descriptor.options ?? {}) as SupabaseDescriptorOptions
+  const { autoMigrate } = (descriptor.options ?? {}) as SupabaseDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<SupabaseBinding>
   if (!binding.client) {
     throw new Error(
@@ -130,7 +130,7 @@ export const supabaseStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSupabase({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
     ...(address.table !== undefined && { tableName: address.table }),
     client: binding.client,
   })

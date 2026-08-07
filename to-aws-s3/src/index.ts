@@ -414,12 +414,14 @@ export function s3StoreDescriptor(address: S3Address, options?: S3DescriptorOpti
  * ({@link S3Binding}), which always wins over region/credentials.
  */
 export const s3StoreFactory: StoreFactory = (descriptor, opts) => {
-  const address = descriptor.address as S3Address
-  const options = (descriptor.options ?? {}) as S3DescriptorOptions
+  const { bucket, region, prefix } = descriptor.address as S3Address
+  const { clockUncertaintyMs } = (descriptor.options ?? {}) as S3DescriptorOptions
   const binding = (opts.binding ?? {}) as S3Binding
   return toAwsS3({
-    ...address,
-    ...options,
+    bucket,
+    ...(region !== undefined && { region }),
+    ...(prefix !== undefined && { prefix }),
+    ...(clockUncertaintyMs !== undefined && { clockUncertaintyMs }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),
     ...(binding.client !== undefined && { client: binding.client }),
   })

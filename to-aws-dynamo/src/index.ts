@@ -526,10 +526,12 @@ export function dynamoStoreDescriptor(address: DynamoAddress): StoreDescriptor {
  * ({@link DynamoBinding}), which always wins.
  */
 export const dynamoStoreFactory: StoreFactory = (descriptor, opts) => {
-  const address = descriptor.address as DynamoAddress
+  const { table, region, endpoint } = descriptor.address as DynamoAddress
   const binding = (opts.binding ?? {}) as DynamoBinding
   return toAwsDynamo({
-    ...address,
+    table,
+    ...(region !== undefined && { region }),
+    ...(endpoint !== undefined && { endpoint }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),
     ...(binding.client !== undefined && { client: binding.client }),
   })

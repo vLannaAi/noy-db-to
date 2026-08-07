@@ -294,7 +294,7 @@ export function mysqlStoreDescriptor(address: MysqlAddress, options?: MysqlDescr
  */
 export const mysqlStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as MysqlAddress
-  const options = (descriptor.options ?? {}) as MysqlDescriptorOptions
+  const { autoMigrate } = (descriptor.options ?? {}) as MysqlDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<MysqlBinding>
   if (!binding.client) {
     throw new Error(
@@ -304,7 +304,7 @@ export const mysqlStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toMysql({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
     ...(address.table !== undefined && { tableName: address.table }),
     client: binding.client,
   })

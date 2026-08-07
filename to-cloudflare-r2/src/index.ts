@@ -202,12 +202,15 @@ export function r2StoreDescriptor(address: R2Address, options?: R2DescriptorOpti
  * ({@link R2Binding}), which always wins over `accountId` + credentials.
  */
 export const r2StoreFactory: StoreFactory = (descriptor, opts) => {
-  const address = descriptor.address as R2Address
-  const options = (descriptor.options ?? {}) as R2DescriptorOptions
+  const { bucket, accountId, prefix, endpoint } = descriptor.address as R2Address
+  const { clockUncertaintyMs } = (descriptor.options ?? {}) as R2DescriptorOptions
   const binding = (opts.binding ?? {}) as R2Binding
   return toCloudflareR2({
-    ...address,
-    ...options,
+    bucket,
+    ...(accountId !== undefined && { accountId }),
+    ...(prefix !== undefined && { prefix }),
+    ...(endpoint !== undefined && { endpoint }),
+    ...(clockUncertaintyMs !== undefined && { clockUncertaintyMs }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),
     ...(binding.client !== undefined && { client: binding.client }),
   })
