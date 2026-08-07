@@ -88,3 +88,44 @@ runStoreConformanceTests('to-rest (descriptor-resolved via store locator)', asyn
     credentials: async () => ({ kind: 'token', token: 'test-key' }),
   })
 })
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// `headers` is a BINDING-owned field applied conditionally, so before #69
+// an `options.headers` bag reached `toRest()` whenever the caller supplied
+// no `binding.headers`. It is plain JSON — it survives a pod round-trip,
+// which is exactly the case the write-up called "shadowable for real".
+
+describe('to-rest — descriptor.options cannot shadow binding-owned slots (#69)', () => {
+  it('headers smuggled through options are never sent', async () => {
+    const locator = createStoreLocator()
+    registerRestStore(locator)
+    const harness = restHarness()
+    const store = await locator.resolve(
+      {
+        ...restStoreDescriptor({ baseUrl: 'https://vault.example.com' }),
+        options: { headers: { 'x-attacker': 'yes' } },
+      },
+      { binding: { fetch: harness.fetch }, credentials: async () => ({ kind: 'token', token: 'test-key' }) },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect(harness.requests.length).toBeGreaterThan(0)
+    for (const req of harness.requests) {
+      expect(Object.keys(req.headers).map(k => k.toLowerCase())).not.toContain('x-attacker')
+    }
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerRestStore(locator)
+    const harness = restHarness()
+    const store = await locator.resolve(
+      { ...restStoreDescriptor({ baseUrl: 'https://vault.example.com' }), options: { nonsense: true } },
+      { binding: { fetch: harness.fetch }, credentials: async () => ({ kind: 'token', token: 'test-key' }) },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})

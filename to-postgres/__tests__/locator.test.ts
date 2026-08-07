@@ -90,6 +90,48 @@ describe('to-postgres — store-locator descriptor (#58)', () => {
   })
 })
 
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+//
+// Every factory used to build its store options by spreading the
+// descriptor's unchecked `options` bag. Where the binding- or
+// address-owned key was applied CONDITIONALLY, a matching `options` key
+// survived and won. The factories now destructure the declared
+// `DescriptorOptions` fields, so an undeclared key cannot reach the store at all.
+
+describe('to-postgres — descriptor.options cannot shadow binding-owned slots (#69)', () => {
+  it('a tableName smuggled through options never reaches the store', async () => {
+    const locator = createStoreLocator()
+    registerPostgresStore(locator)
+    // The mock keys rows in a Map, not by table, so a read-back cannot see
+    // the shadow — the emitted SQL is the only honest witness.
+    const inner = mockClient()
+    const sql: string[] = []
+    const client = {
+      query: <T,>(s: string, p?: readonly unknown[]) => { sql.push(s); return inner.query<T>(s, p) },
+    }
+    const poisoned = await locator.resolve(
+      { ...postgresStoreDescriptor({ database: 'app' }), options: { tableName: 'attacker_owned' } },
+      { binding: { client } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await poisoned.put('v', 'c', 'a', envelope)
+    expect(sql.join(' ')).not.toContain('attacker_owned')
+    expect(sql.join(' ')).toContain('noydb_envelopes')
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerPostgresStore(locator)
+    const store = await locator.resolve(
+      { ...postgresStoreDescriptor({ database: 'app' }), options: { nonsense: true, tableName: undefined } },
+      { binding: { client: mockClient() } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})
+
 // ─── Full conformance suite against a descriptor-resolved store ──────
 runStoreConformanceTests('to-postgres (descriptor-resolved via store locator)', async () => {
   const locator = createStoreLocator()

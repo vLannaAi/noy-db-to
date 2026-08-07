@@ -352,12 +352,14 @@ export function webdavStoreDescriptor(address: WebdavAddress, options?: WebdavDe
  * transport override ({@link WebdavBinding}).
  */
 export const webdavStoreFactory: StoreFactory = (descriptor, opts) => {
-  const address = descriptor.address as WebdavAddress
-  const options = (descriptor.options ?? {}) as WebdavDescriptorOptions
+  const { baseUrl, prefix } = descriptor.address as WebdavAddress
+  const { autoMkcol, eagerMkcol } = (descriptor.options ?? {}) as WebdavDescriptorOptions
   const binding = (opts.binding ?? {}) as WebdavBinding
   return toWebdav({
-    ...address,
-    ...options,
+    baseUrl,
+    ...(prefix !== undefined && { prefix }),
+    ...(autoMkcol !== undefined && { autoMkcol }),
+    ...(eagerMkcol !== undefined && { eagerMkcol }),
     ...(opts.credentials !== undefined && { credentials: opts.credentials }),
     ...(binding.fetch !== undefined && { fetch: binding.fetch }),
     ...(binding.headers !== undefined && { headers: binding.headers }),

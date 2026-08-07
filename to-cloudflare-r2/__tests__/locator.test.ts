@@ -113,3 +113,36 @@ runStoreConformanceTests('to-cloudflare-r2 (descriptor-resolved via store locato
     binding: { client: fakeS3().client },
   })
 })
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+// Same `{ ...address, ...options }` shape as to-aws-s3, which this store
+// delegates to.
+
+describe('to-cloudflare-r2 — descriptor.options cannot shadow address-owned slots (#69)', () => {
+  it('a prefix smuggled through options never overrides the address prefix', async () => {
+    const locator = createStoreLocator()
+    registerR2Store(locator)
+    const client = fakeS3().client
+    const address = { bucket: 'b', accountId: 'acct', prefix: 'tenant-a' }
+    const poisoned = await locator.resolve(
+      { ...r2StoreDescriptor(address), options: { prefix: 'attacker' } },
+      { binding: { client } },
+    )
+    const clean = await locator.resolve(r2StoreDescriptor(address), { binding: { client } })
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await poisoned.put('v', 'c', 'a', envelope)
+    expect((await clean.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerR2Store(locator)
+    const store = await locator.resolve(
+      { ...r2StoreDescriptor({ bucket: 'b', accountId: 'acct' }), options: { nonsense: true } },
+      { binding: { client: fakeS3().client } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})

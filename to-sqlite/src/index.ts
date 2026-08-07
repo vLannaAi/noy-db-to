@@ -360,7 +360,7 @@ export function sqliteStoreDescriptor(address: SqliteAddress, options?: SqliteDe
  */
 export const sqliteStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as SqliteAddress
-  const options = (descriptor.options ?? {}) as SqliteDescriptorOptions
+  const { autoMigrate } = (descriptor.options ?? {}) as SqliteDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<SqliteBinding>
   if (!binding.client) {
     throw new Error(
@@ -370,7 +370,7 @@ export const sqliteStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSqlite({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
     ...(address.table !== undefined && { tableName: address.table }),
     db: binding.client,
   })

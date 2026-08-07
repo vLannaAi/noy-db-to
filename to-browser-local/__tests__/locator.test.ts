@@ -89,3 +89,35 @@ runStoreConformanceTests(
     localStorage.clear()
   },
 )
+
+// ─── noy-db-to#69 — descriptor.options may only set declared keys ─────
+// `{ ...address, ...options }` let an `options.prefix` win over the
+// address's — and the prefix is the whole localStorage key namespace.
+
+describe('to-browser-local — descriptor.options cannot shadow address-owned slots (#69)', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  it('a prefix smuggled through options never overrides the address prefix', async () => {
+    const locator = createStoreLocator()
+    registerBrowserLocalStore(locator)
+    const poisoned = await locator.resolve(
+      { ...browserLocalStoreDescriptor({ prefix: 'tenant-a' }), options: { prefix: 'attacker' } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await poisoned.put('v', 'c', 'a', envelope)
+    const keys = Object.keys(localStorage)
+    expect(keys).toContain('tenant-a:v:c:a')
+    expect(keys).not.toContain('attacker:v:c:a')
+  })
+
+  it('an unknown options key is ignored, not forwarded', async () => {
+    const locator = createStoreLocator()
+    registerBrowserLocalStore(locator)
+    const store = await locator.resolve(
+      { ...browserLocalStoreDescriptor({ prefix: 'unknown-key' }), options: { nonsense: true } },
+    )
+    const envelope = { _noydb: 1 as const, _v: 1, _ts: new Date().toISOString(), _iv: 'i', _data: 'ZA==' }
+    await store.put('v', 'c', 'a', envelope)
+    expect((await store.get('v', 'c', 'a'))?._v).toBe(1)
+  })
+})

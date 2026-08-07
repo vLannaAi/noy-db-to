@@ -412,7 +412,7 @@ export function cloudflareD1StoreDescriptor(
  */
 export const cloudflareD1StoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as CloudflareD1Address
-  const options = (descriptor.options ?? {}) as CloudflareD1DescriptorOptions
+  const { autoMigrate } = (descriptor.options ?? {}) as CloudflareD1DescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<CloudflareD1Binding>
   if (!binding.client) {
     throw new Error(
@@ -422,7 +422,7 @@ export const cloudflareD1StoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toCloudflareD1({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
     ...(address.table !== undefined && { tableName: address.table }),
     db: binding.client,
   })

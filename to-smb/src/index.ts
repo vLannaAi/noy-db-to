@@ -258,7 +258,7 @@ export function smbStoreDescriptor(address: SmbAddress, options?: SmbDescriptorO
  */
 export const smbStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as SmbAddress
-  const options = (descriptor.options ?? {}) as SmbDescriptorOptions
+  const { name } = (descriptor.options ?? {}) as SmbDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<SmbBinding>
   if (!binding.client) {
     throw new Error(
@@ -268,7 +268,7 @@ export const smbStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toSmb({
-    ...options,
+    ...(name !== undefined && { name }),
     ...(address.path !== undefined && { remotePath: address.path }),
     smb: binding.client,
   })

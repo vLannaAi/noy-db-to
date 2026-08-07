@@ -237,7 +237,7 @@ export function nfsStoreDescriptor(address: NfsAddress, options?: NfsDescriptorO
  * travels in a descriptor.
  */
 export const nfsStoreFactory: StoreFactory = (descriptor, opts) => {
-  const options = (descriptor.options ?? {}) as NfsDescriptorOptions
+  const { onNolock } = (descriptor.options ?? {}) as NfsDescriptorOptions
   const binding = (opts.binding ?? {}) as Partial<NfsBinding>
   if (!binding.mountPath) {
     throw new Error(
@@ -247,7 +247,7 @@ export const nfsStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toNfs({
-    ...options,
+    ...(onNolock !== undefined && { onNolock }),
     ...(binding.mountDetector !== undefined && { mountDetector: binding.mountDetector }),
     mountPath: binding.mountPath,
   })

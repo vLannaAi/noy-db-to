@@ -543,7 +543,7 @@ export function tursoStoreDescriptor(address: TursoAddress, options?: TursoDescr
  */
 export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
   const address = descriptor.address as TursoAddress
-  const options = (descriptor.options ?? {}) as TursoDescriptorOptions
+  const { autoMigrate, clockUncertaintyMs } = (descriptor.options ?? {}) as TursoDescriptorOptions
   const binding = (opts.binding ?? {}) as TursoBinding
   if (!address.url) {
     throw new Error(
@@ -560,7 +560,8 @@ export const tursoStoreFactory: StoreFactory = (descriptor, opts) => {
     )
   }
   return toTurso({
-    ...options,
+    ...(autoMigrate !== undefined && { autoMigrate }),
+    ...(clockUncertaintyMs !== undefined && { clockUncertaintyMs }),
     ...(address.table !== undefined && { tableName: address.table }),
     ...(binding.client !== undefined && { client: binding.client }),
     ...(binding.clientFactory !== undefined && { clientFactory: binding.clientFactory }),
