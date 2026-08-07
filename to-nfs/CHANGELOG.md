@@ -1,5 +1,24 @@
 # Changelog — to-nfs
 
+## 0.6.0-pre.1
+
+### `server:/export` is now cross-checked against the actual mount ([#70](https://github.com/vLannaAi/noy-db-to/issues/70))
+
+- `MountInfo` gains `device`; `detectMount()` returns the mount's device string, which for an NFS mount is exactly `server:/export` — it was already being parsed out of `/proc/mounts` and discarded.
+- `runMountDiagnostics()` compares the descriptor's `server`/`export` against that device and adds a risk on mismatch, so a pod claiming `nas.local:/exports/vaults` resolved against a `mountPath` pointing elsewhere no longer writes to the wrong place silently. **This changes `diagnostics()` output.**
+- New `onDeviceMismatch: 'warn' | 'error'` on `NfsStoreOptions` and `NfsDescriptorOptions`, following the `onNolock` precedent and **defaulting to `'warn'`** — an existing consumer whose descriptor is merely imprecise must not break on upgrade.
+- The check is gated on **both** address halves *and* a device from the detector, so a detector that cannot report one (every pre-#70 implementation, including any a consumer injected) never manufactures a mismatch. Only trailing slashes are normalized; host case is left alone.
+- `nfsStoreFactory` now forwards `address.server` / `address.export`. The address still does not *open* anything — `binding.mountPath` remains what the store opens.
+- Fixed alongside: the `onNolock` escalation selected its message by `risks[0]`, which would have thrown the *device* message once a second escalating risk existed. Both escalations now select by predicate.
+
+### Descriptors may only set declared keys ([#69](https://github.com/vLannaAi/noy-db-to/issues/69))
+
+- `to-nfs` descriptors can no longer set anything the store's `DescriptorOptions` / `Address` types declare no field for. The factory destructures named fields instead of spreading the descriptor's unchecked `options` (and, where applicable, `address`) bag into the store options. Where the winning key was applied *conditionally*, a matching key in that bag previously survived and won — here: `mountDetector` — a binding-owned slot applied only when `binding.mountDetector` was absent, silently disabling the `nolock` / `noac` / fstype safety diagnostics. New `#69` tests assert an undeclared key cannot reach the store.
+
+### Hub 0.6.0-pre.3 adopted ([#74](https://github.com/vLannaAi/noy-db-to/pull/74))
+
+- Dev pins → `0.6.0-pre.3` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`. `peerDependencies` are **unchanged**: the existing `^0.6.0-pre.0` already admits later pre-releases on the same `major.minor.patch`, which is the ranged peer doing its job — a same-line hub release must not force a rebuild on consumers. The `/to` store contract is unchanged (hub `pre.2` was comment-only; `pre.3` covers pod-write strictness, a barrel re-export, and a codemod asset). Full conformance re-validated.
+
 ## 0.5.0
 
 ### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))
