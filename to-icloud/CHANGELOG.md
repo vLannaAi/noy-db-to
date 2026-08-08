@@ -1,5 +1,22 @@
 # @noy-db/to-icloud
 
+## 0.6.0-pre.1
+
+### Eviction docs corrected: modern macOS is dataless-in-place, not `.icloud` stubs ([#15](https://github.com/vLannaAi/noy-db-to/issues/15))
+
+- Documentation only — **zero non-comment lines** in the source diff. Verified on macOS Sequoia (Darwin 24.6) against a genuine synced iCloud Drive folder: `brctl evict` writes **no** `.icloud` stub. The canonical file stays put and becomes APFS-dataless (`stat` reports full logical size, `du` reports 0 bytes), and a plain read blocks transparently while the OS rehydrates, then succeeds.
+- So the stub-detection sequence never fires on current macOS — the store is functionally correct there via its ordinary read path, and the stub branch is the **legacy** shape, kept for older macOS and other sync surfaces. The package had described the stub as *the* eviction shape.
+- Corrected across the module docblock (new *Eviction shapes* section), `isStub`, `stubAwareRead`, `readBundle`, `ICloudFs.triggerDownload`, the README (new comparison table), the package description, and `mockFs()`'s docblock — the mock simulates the legacy shape and was easy to mistake for a model of current macOS.
+- The consequence for callers is **latency, not errors**: a read of an evicted bundle can block on the network with no advance signal. Telling evicted-dataless from locally-present needs an `st_blocks`-vs-logical-size comparison the duck-typed `ICloudFs` does not expose; left open and cross-referenced, not built.
+
+### Descriptors may only set declared keys ([#69](https://github.com/vLannaAi/noy-db-to/issues/69))
+
+- Every non-descriptor input here (`folder`, `fs`) is applied unconditionally, so nothing was shadowable — but the factory still spread the unchecked `options` bag. It now destructures the declared `suffix`, and a new `#69` test asserts the invariant, whose value is that it holds across all 17 stores rather than only where it happened to bite.
+
+### Hub 0.6.0-pre.3 adopted ([#74](https://github.com/vLannaAi/noy-db-to/pull/74))
+
+- Dev pins → `0.6.0-pre.3` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`. `peerDependencies` are **unchanged**: the existing `^0.6.0-pre.0` already admits later pre-releases on the same `major.minor.patch`, which is the ranged peer doing its job — a same-line hub release must not force a rebuild on consumers. The `/to` store contract is unchanged (hub `pre.2` was comment-only; `pre.3` covers pod-write strictness, a barrel re-export, and a codemod asset). Full conformance re-validated.
+
 ## 0.5.0
 
 ### Store-locator descriptor adopted ([#58](https://github.com/vLannaAi/noy-db-to/issues/58))

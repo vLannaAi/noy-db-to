@@ -1,5 +1,19 @@
 # @noy-db/to-rest
 
+## 0.6.0-pre.1
+
+### Descriptors may only set declared keys ([#69](https://github.com/vLannaAi/noy-db-to/issues/69))
+
+- `to-rest` descriptors can no longer set anything the store's `DescriptorOptions` / `Address` types declare no field for. The factory destructures named fields instead of spreading the descriptor's unchecked `options` (and, where applicable, `address`) bag into the store options. Where the winning key was applied *conditionally*, a matching key in that bag previously survived and won — here: `headers` — a binding-owned slot applied only when `binding.headers` was absent. Plain JSON, so unlike a `fetch` function it survives a pod round-trip. New `#69` tests assert an undeclared key cannot reach the store.
+
+### Hub 0.6.0-pre.3 adopted ([#74](https://github.com/vLannaAi/noy-db-to/pull/74))
+
+- Dev pins → `0.6.0-pre.3` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`. `peerDependencies` are **unchanged**: the existing `^0.6.0-pre.0` already admits later pre-releases on the same `major.minor.patch`, which is the ranged peer doing its job — a same-line hub release must not force a rebuild on consumers. The `/to` store contract is unchanged (hub `pre.2` was comment-only; `pre.3` covers pod-write strictness, a barrel re-export, and a codemod asset). Full conformance re-validated.
+
+### Docs: 0.1-era vocabulary corrected ([#73](https://github.com/vLannaAi/noy-db-to/pull/73))
+
+- Finished the `passphrase` → `secret` rename in prose (source docblock, README, package description). No API change.
+
 ## 0.5.0
 
 ### Store-locator descriptor + credential-broker auth ([#58](https://github.com/vLannaAi/noy-db-to/issues/58), noy-db#945)
