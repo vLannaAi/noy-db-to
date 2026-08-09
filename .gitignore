@@ -4,3 +4,6 @@ dist
 *.log
 .DS_Store
 .superpowers/sdd
+
+# ─── Local-only AI configs (not published) ─────────────────────────
+CLAUDE.md
