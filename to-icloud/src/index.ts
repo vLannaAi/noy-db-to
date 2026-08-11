@@ -65,7 +65,7 @@
  * @packageDocumentation
  */
 
-import type { NoydbPodStore, StoreDescriptor, StoreFactory, StoreLocator } from '@noy-db/hub/to'
+import type { NoydbPodStore, StoreDescriptor, StoreLocator } from '@noy-db/hub/to'
 import { PodVersionConflictError } from '@noy-db/hub/to'
 
 /** Default iCloud Drive folder name inside a user's mobile-documents tree. */
@@ -354,12 +354,12 @@ export function icloudStoreFactory(
 
 /**
  * Registers {@link icloudStoreFactory} under the `'icloud'` kind on
- * `locator`. The cast is required (not a shape assertion) because
- * `StoreLocator.register()`'s declared `StoreFactory` type returns
- * `NoydbStore`, while `icloudStoreFactory` deliberately returns the
- * unnarrowed `NoydbPodStore` — `createStoreLocator()` itself performs no
- * runtime shape check, it only stores and later invokes the factory.
+ * `locator`. No cast since hub `0.6.0-pre.11`: `register()` is generic over
+ * both store shapes (noy-db#988), so the pod store's `NoydbPodStore` return
+ * is inferred rather than asserted away. Callers resolving a descriptor
+ * whose kind is not statically known should use `resolveAny()` +
+ * `isPodStore()`.
  */
 export function registerIcloudStore(locator: StoreLocator): void {
-  locator.register('icloud', icloudStoreFactory as unknown as StoreFactory)
+  locator.register('icloud', icloudStoreFactory)
 }
