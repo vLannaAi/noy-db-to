@@ -42,8 +42,8 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "@noy-db/hub": "0.6.0-pre.3",
-    "@noy-db/test-adapter-conformance": "0.6.0-pre.3"
+    "@noy-db/hub": "0.6.0-pre.11",
+    "@noy-db/test-adapter-conformance": "0.6.0-pre.11"
   },
   "keywords": [
     "noy-db",
