@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { BundleVersionConflictError } from '@noy-db/hub'
+import { PodVersionConflictError } from '@noy-db/hub'
 import { mockFs } from './_mock.js'
 import { toIcloud } from '../src/index.js'
 
@@ -44,7 +44,7 @@ describe('@noy-db/to-icloud', () => {
     const store = toIcloud({ folder: dir, fs })
     await store.writeBundle('acme', bytes('v1'), null)
     await expect(store.writeBundle('acme', bytes('v2'), 'wrong-version'))
-      .rejects.toBeInstanceOf(BundleVersionConflictError)
+      .rejects.toBeInstanceOf(PodVersionConflictError)
   })
 
   it('writeBundle raises on detected conflict file', async () => {
@@ -56,7 +56,7 @@ describe('@noy-db/to-icloud', () => {
       bytes: bytes('rival-v1'), mtime: 1_700_000_500_000, size: 8,
     })
     await expect(store.writeBundle('acme', bytes('v2'), 'stale'))
-      .rejects.toBeInstanceOf(BundleVersionConflictError)
+      .rejects.toBeInstanceOf(PodVersionConflictError)
   })
 
   it('deleteBundle is idempotent', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { BundleVersionConflictError } from '@noy-db/hub'
+import { PodVersionConflictError } from '@noy-db/hub'
 import { toDrive, memoryHandleStore, newUlid } from '../src/index.js'
 import { mockDrive } from './_mock.js'
 
@@ -54,17 +54,17 @@ describe('@noy-db/to-drive', () => {
     expect(client.files.size).toBe(1)
   })
 
-  it('writeBundle with wrong expectedVersion throws BundleVersionConflictError', async () => {
+  it('writeBundle with wrong expectedVersion throws PodVersionConflictError', async () => {
     const store = toDrive({ drive: client })
     await store.writeBundle('acme', bytes('v1'), null)
     await expect(store.writeBundle('acme', bytes('v2'), '999'))
-      .rejects.toBeInstanceOf(BundleVersionConflictError)
+      .rejects.toBeInstanceOf(PodVersionConflictError)
   })
 
   it('writeBundle refuses first write when expectedVersion is provided', async () => {
     const store = toDrive({ drive: client })
     await expect(store.writeBundle('acme', bytes('v1'), 'ghost-version'))
-      .rejects.toBeInstanceOf(BundleVersionConflictError)
+      .rejects.toBeInstanceOf(PodVersionConflictError)
   })
 
   it('readBundle returns current content + version', async () => {

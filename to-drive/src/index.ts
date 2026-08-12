@@ -3,7 +3,7 @@
  *
  * Stores each vault as a single `.noydb` bundle in Drive. Implements
  * the `NoydbPodStore` contract (read/write/delete/list whole-bundle);
- * wrap with `wrapBundleStore()` from `@noy-db/hub` to get the standard
+ * wrap with `wrapPodStore()` from `@noy-db/hub` to get the standard
  * six-method `NoydbStore` surface.
  *
  * ## Privacy posture
