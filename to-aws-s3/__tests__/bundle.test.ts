@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { S3Client } from '@aws-sdk/client-s3'
-import { BundleVersionConflictError } from '@noy-db/hub'
+import { PodVersionConflictError } from '@noy-db/hub'
 import { s3Bundle } from '../src/bundle.js'
 
 /** In-memory fake S3 with ETag + IfMatch semantics. */
@@ -79,12 +79,12 @@ describe('s3Bundle', () => {
     expect(new TextDecoder().decode(r!.bytes)).toBe('two')
   })
 
-  it('IfMatch on a stale version throws BundleVersionConflictError', async () => {
+  it('IfMatch on a stale version throws PodVersionConflictError', async () => {
     const { client } = fakeS3()
     const store = s3Bundle({ bucket: 'b', client })
     const w1 = await store.writeBundle('k', bytes('a'), null)
     await store.writeBundle('k', bytes('b'), null) // advances the ETag
-    await expect(store.writeBundle('k', bytes('c'), w1.version)).rejects.toThrow(BundleVersionConflictError)
+    await expect(store.writeBundle('k', bytes('c'), w1.version)).rejects.toThrow(PodVersionConflictError)
   })
 
   it('IfMatch on the current version succeeds', async () => {

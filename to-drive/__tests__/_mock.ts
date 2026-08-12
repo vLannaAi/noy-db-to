@@ -1,4 +1,4 @@
-import { BundleVersionConflictError } from '@noy-db/hub'
+import { PodVersionConflictError } from '@noy-db/hub'
 import type { DriveClient, DriveFileMeta } from '../src/index.js'
 
 /** In-memory Drive client mock — extracted from to-drive.test.ts for the conformance suite (#26). */
@@ -17,7 +17,7 @@ export function mockDrive(): DriveClient & { files: Map<string, { name: string; 
       const entry = files.get(id)
       if (!entry) throw new Error(`update: ${id} not found`)
       if (req.expectedRevision !== undefined && req.expectedRevision !== null && String(entry.rev) !== req.expectedRevision) {
-        throw new BundleVersionConflictError(`revision mismatch: expected ${req.expectedRevision}, found ${entry.rev}`)
+        throw new PodVersionConflictError(`revision mismatch: expected ${req.expectedRevision}, found ${entry.rev}`)
       }
       entry.bytes = req.bytes
       entry.rev += 1

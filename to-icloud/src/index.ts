@@ -3,7 +3,7 @@
  *
  * Treats each vault as a single `.noydb` bundle stored under
  * `~/Library/Mobile Documents/…` (or any user-chosen iCloud path).
- * Pair with `wrapBundleStore()` from `@noy-db/hub` to get the
+ * Pair with `wrapPodStore()` from `@noy-db/hub` to get the
  * standard six-method `NoydbStore` surface.
  *
  * ## Why a dedicated package if `to-file` "works"?
@@ -115,7 +115,7 @@ function isConflictCopy(name: string, expected: string): boolean {
 
 /**
  * Build a `NoydbPodStore` over an iCloud Drive folder. Wrap with
- * `wrapBundleStore()` to consume via `createNoydb({ store })`.
+ * `wrapPodStore()` to consume via `createNoydb({ store })`.
  */
 export function toIcloud(options: ICloudStoreOptions): NoydbPodStore {
   const suffix = options.suffix ?? '.noydb'
