@@ -39,11 +39,11 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0(@aws-sdk/client-dynamodb@3.1075.0)
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
 
   to-aws-s3:
     devDependencies:
@@ -51,20 +51,20 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
 
   to-browser-fs:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       fake-indexeddb:
         specifier: ^6.0.0
         version: 6.2.5
@@ -75,11 +75,11 @@ importers:
   to-browser-local:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       happy-dom:
         specifier: ^18.0.0
         version: 18.0.1
@@ -87,11 +87,11 @@ importers:
   to-cloudflare-d1:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -102,11 +102,11 @@ importers:
         specifier: ^3.0.0
         version: 3.1075.0
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@noy-db/to-aws-s3':
         specifier: workspace:*
         version: link:../to-aws-s3
@@ -117,11 +117,11 @@ importers:
   to-drive:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -129,11 +129,11 @@ importers:
   to-icloud:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -141,11 +141,11 @@ importers:
   to-mysql:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -153,11 +153,11 @@ importers:
   to-nfs:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -165,11 +165,11 @@ importers:
   to-postgres:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -177,14 +177,14 @@ importers:
   to-rest:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/in-rest':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -192,11 +192,11 @@ importers:
   to-smb:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -204,11 +204,11 @@ importers:
   to-sqlite:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -216,11 +216,11 @@ importers:
   to-ssh:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -228,11 +228,11 @@ importers:
   to-supabase:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@noy-db/to-postgres':
         specifier: workspace:*
         version: link:../to-postgres
@@ -243,11 +243,11 @@ importers:
   to-turso:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -255,11 +255,11 @@ importers:
   to-webdav:
     devDependencies:
       '@noy-db/hub':
-        specifier: 0.6.0-pre.14
-        version: 0.6.0-pre.14
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16
       '@noy-db/test-adapter-conformance':
-        specifier: 0.6.0-pre.11
-        version: 0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
+        specifier: 0.6.0-pre.16
+        version: 0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
@@ -780,12 +780,12 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@noy-db/attestation@0.6.0-pre.14':
-    resolution: {integrity: sha512-8ysp+Lys1cLTbIYoJAEQCUCkMiPJI6oTzFPDL7/n9KxJNjPlXqWujjLP5K9wfIJrDQtqD0/to5NJBWmmgGMU/A==}
+  '@noy-db/attestation@0.6.0-pre.16':
+    resolution: {integrity: sha512-MuSKoIMrAjQC5jHsFq3dSsQxRc8igtrWJ3nqmEeGquMNcfwBACRZ3OWmEKpgQXZwPmD4hIdIXYCKnLBXIbYckw==}
     engines: {node: '>=22.0.0'}
 
-  '@noy-db/hub@0.6.0-pre.14':
-    resolution: {integrity: sha512-Fx4AztwsF4/dvpFziYHwXgU251QkxLx79c6syWj/X5kMz3AbrELizNBAPcEdR8BCIG8NCAv88JQN63CM3ZQwlA==}
+  '@noy-db/hub@0.6.0-pre.16':
+    resolution: {integrity: sha512-9fAGFC5t/XM0sS8ftUPmGuFYmsygXSEb0BJyTru9l96o1E6EC8VZquyr/+qtIEn93NpDhCc4SOS/BNlCr/I5CQ==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       zod-to-json-schema: ^3.25.0
@@ -793,11 +793,11 @@ packages:
       zod-to-json-schema:
         optional: true
 
-  '@noy-db/in-rest@0.6.0-pre.11':
-    resolution: {integrity: sha512-NYSdxLlw0luMr68WiSTRGPsZLX+rmBeiu/EI+oJ/1bx2Q0Zlc2BNev2ZIKjoLaNiviA43V4Mb9/Jag7DXkVy/Q==}
+  '@noy-db/in-rest@0.6.0-pre.16':
+    resolution: {integrity: sha512-32XtZKGTyqjjDHKtoRVIOiDBuNO7UaDb9JhbduWNxE4S6Zus6lo98/YYaLb1M14HThKlFhlYn6ocwpcHBhuO8w==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
-      '@noy-db/hub': 0.6.0-pre.11
+      '@noy-db/hub': 0.6.0-pre.16
       express: '*'
       fastify: '*'
       h3: '*'
@@ -812,11 +812,11 @@ packages:
       hono:
         optional: true
 
-  '@noy-db/test-adapter-conformance@0.6.0-pre.11':
-    resolution: {integrity: sha512-MGFpK8NGrk5Xc8HR4oXFEG15h+W2lJ0Ww70R23mPnayCdd3Y3MjZhVhc2Pcy5JxeW6Lly9Pdcn6kBrCyhgzi4A==}
+  '@noy-db/test-adapter-conformance@0.6.0-pre.16':
+    resolution: {integrity: sha512-Gz2V9ax1NgORAtAft56Pi8H5JWb1OeBYeeIzwA4PNCLN0Rlb/NICaBa7DONumdPlQ/rYuigS3TwzUkqk49In+w==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
-      '@noy-db/hub': 0.6.0-pre.11
+      '@noy-db/hub': 0.6.0-pre.16
       vitest: ^3.0.0
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
@@ -2281,19 +2281,19 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@noy-db/attestation@0.6.0-pre.14': {}
+  '@noy-db/attestation@0.6.0-pre.16': {}
 
-  '@noy-db/hub@0.6.0-pre.14':
+  '@noy-db/hub@0.6.0-pre.16':
     dependencies:
-      '@noy-db/attestation': 0.6.0-pre.14
+      '@noy-db/attestation': 0.6.0-pre.16
 
-  '@noy-db/in-rest@0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)':
+  '@noy-db/in-rest@0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)':
     dependencies:
-      '@noy-db/hub': 0.6.0-pre.14
+      '@noy-db/hub': 0.6.0-pre.16
 
-  '@noy-db/test-adapter-conformance@0.6.0-pre.11(@noy-db/hub@0.6.0-pre.14)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))':
+  '@noy-db/test-adapter-conformance@0.6.0-pre.16(@noy-db/hub@0.6.0-pre.16)(vitest@3.2.6(@types/node@22.20.0)(happy-dom@18.0.1))':
     dependencies:
-      '@noy-db/hub': 0.6.0-pre.14
+      '@noy-db/hub': 0.6.0-pre.16
       vitest: 3.2.6(@types/node@22.20.0)(happy-dom@18.0.1)
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
