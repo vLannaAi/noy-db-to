@@ -21,6 +21,8 @@ import { toAwsDynamo } from '../../to-aws-dynamo/src/index.js'
 import { fakeDynamo } from '../../to-aws-dynamo/__tests__/_fake-dynamo.js'
 import { toAwsS3 } from '../../to-aws-s3/src/index.js'
 import { fakeS3 } from '../../to-aws-s3/__tests__/_fake-s3.js'
+import { toBrowserFs } from '../../to-browser-fs/src/index.js'
+import { fakeRoot } from '../../to-browser-fs/__tests__/fake-fs.js'
 import { toBrowserLocal } from '../../to-browser-local/src/index.js'
 import { toCloudflareD1 } from '../../to-cloudflare-d1/src/index.js'
 import { d1OverNodeSqlite } from '../../to-cloudflare-d1/__tests__/_engine.js'
@@ -57,6 +59,7 @@ const cleanDetector: MountDetector = async () => ({ exists: true, fstype: 'nfs4'
 const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; conditionalBits?: readonly string[]; make: () => unknown }> = {
   'to-aws-dynamo':    { factory: 'toAwsDynamo',    shape: 'record', make: () => toAwsDynamo({ table: 't', client: fakeDynamo().client }) },
   'to-aws-s3':        { factory: 'toAwsS3',        shape: 'record', make: () => toAwsS3({ bucket: 'b', client: fakeS3().client }) },
+  'to-browser-fs':    { factory: 'toBrowserFs',    shape: 'record', make: () => toBrowserFs({ handle: fakeRoot() }) },
   'to-browser-local': { factory: 'toBrowserLocal', shape: 'record', make: () => toBrowserLocal({ prefix: 'docs-bridge-dump' }) },
   'to-cloudflare-d1': { factory: 'toCloudflareD1', shape: 'record', make: () => toCloudflareD1({ db: d1OverNodeSqlite() }) },
   'to-cloudflare-r2': { factory: 'toCloudflareR2', shape: 'record', make: () => toCloudflareR2({ bucket: 'b', client: fakeS3().client }) },
@@ -76,7 +79,7 @@ const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; condi
 }
 
 describe('docs-bridge capability dump', () => {
-  it('constructs all 17 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
+  it('constructs all 18 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
     const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean; conditionalBits?: readonly string[] }> = {}
     for (const [dir, w] of Object.entries(WIRING)) {
       const store = w.make() as { capabilities?: object }
@@ -91,7 +94,7 @@ describe('docs-bridge capability dump', () => {
         ...(w.conditionalBits?.length ? { conditionalBits: w.conditionalBits } : {}),
       }
     }
-    expect(Object.keys(dump)).toHaveLength(17)
+    expect(Object.keys(dump)).toHaveLength(18)
 
     // Per-bit option-dependence (vLannaAi/noy-db#930): to-turso's txAtomic is
     // the only client-conditional bit today; every other entry omits the field.
