@@ -120,6 +120,28 @@ try {
       continue
     }
 
+    // Build the group AND its workspace dependencies first. Several stores
+    // import a sibling (to-cloudflare-r2 → to-aws-s3, to-supabase →
+    // to-postgres) and resolve it through the workspace link, whose `types`
+    // field points into dist/. Without this the typecheck fails with TS2307
+    // "Cannot find module" — which looks exactly like a peer-range failure and
+    // is not one. The `...` suffix pulls in each package's workspace deps, so
+    // the build stays inside this group's floor rather than rebuilding stores
+    // that declare a different one.
+    const buildFilters = pkgs.flatMap((p) => ['--filter', `${p.name}...`])
+    try {
+      run('pnpm', [...buildFilters, 'build'])
+    } catch (e) {
+      // A group that cannot even build at its floor is a failed claim too —
+      // but report it as a build failure so it is not mistaken for a type error.
+      failures.push({
+        floor,
+        pkgs: pkgs.map((p) => p.name),
+        error: `build failed at this floor:\n      ${`${e.stdout ?? ''}${e.stderr ?? ''}`.slice(0, 500)}`,
+      })
+      continue
+    }
+
     for (const p of pkgs) {
       process.stdout.write(`   typecheck ${p.name.padEnd(28)} `)
       try {
