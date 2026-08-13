@@ -1,5 +1,21 @@
 # @noy-db/to-icloud
 
+## 0.6.0-pre.3
+
+### Peer range narrowed to the versions that actually work ([#89](https://github.com/vLannaAi/noy-db-to/issues/89), [#90](https://github.com/vLannaAi/noy-db-to/pull/90))
+
+- `peerDependencies["@noy-db/hub"]` → **`^0.6.0-pre.11`**, replacing `^0.4.0-pre.11 || ^0.5.0 || ^0.6.0-pre.0`. Two separate falsehoods were retired: `StoreDescriptor` / `StoreFactory` / `StoreLocator` only exist from `0.6.0-pre`, and — specific to the pod stores — registering a `NoydbPodStore` factory without a cast needs `StoreLocator.register()` to be **generic over both store shapes**, which landed in `0.6.0-pre.11`. `register()` existed before that; it simply could not accept the argument. Floor verified by compiling this package against it, not by probing symbol names.
+
+  The family rule is *widen by appending*, which assumes compatibility only grows. It does not: adopting a symbol that exists only from a given upstream version silently retracts the older branches, and no gate notices. **Narrowing is the honest correction.**
+
+### Migrated off the removed hub aliases ([#87](https://github.com/vLannaAi/noy-db-to/pull/87))
+
+- `BundleVersionConflictError` → `PodVersionConflictError` in tests, and `wrapBundleStore()` → `wrapPodStore()` in the source doc comments — **which ship in the published `.d.ts`**, so this was not a tests-only migration. Downstream half of noy-db#1052.
+
+### Hub 0.6.0-pre.16 adopted ([#87](https://github.com/vLannaAi/noy-db-to/pull/87), [#88](https://github.com/vLannaAi/noy-db-to/pull/88))
+
+- Dev pins → `0.6.0-pre.16` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`, moved as a **unit** — a hub-only bump leaves siblings behind and invites the tree to resolve two copies of the same lockstep line.
+
 ## 0.6.0-pre.2
 
 ### Hub 0.6.0-pre.11 adopted ([#83](https://github.com/vLannaAi/noy-db-to/pull/83))

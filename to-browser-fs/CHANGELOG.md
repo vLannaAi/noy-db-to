@@ -1,5 +1,17 @@
 # @noy-db/to-browser-fs
 
+## 0.6.0-pre.3
+
+### Peer range narrowed to the versions that actually work ([#89](https://github.com/vLannaAi/noy-db-to/issues/89), [#90](https://github.com/vLannaAi/noy-db-to/pull/90))
+
+- **Unchanged** at `^0.6.0-pre.0`. This store shipped with an honest floor, so the repo-wide correction did not touch it — recorded here because the *guarantee* changed family-wide even where the string did not.
+
+  The family rule is *widen by appending*, which assumes compatibility only grows. It does not: adopting a symbol that exists only from a given upstream version silently retracts the older branches, and no gate notices. **Narrowing is the honest correction.**
+
+### Hub 0.6.0-pre.16 adopted ([#87](https://github.com/vLannaAi/noy-db-to/pull/87), [#88](https://github.com/vLannaAi/noy-db-to/pull/88))
+
+- Dev pins → `0.6.0-pre.16` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`, moved as a **unit** — a hub-only bump leaves siblings behind and invites the tree to resolve two copies of the same lockstep line.
+
 ## 0.6.0-pre.2
 
 ### Initial release — a File System Access sibling to `to-file` ([#81](https://github.com/vLannaAi/noy-db-to/issues/81), [#82](https://github.com/vLannaAi/noy-db-to/pull/82))

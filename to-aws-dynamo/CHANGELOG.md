@@ -1,5 +1,17 @@
 # Changelog — to-aws-dynamo
 
+## 0.6.0-pre.3
+
+### Peer range narrowed to the versions that actually work ([#89](https://github.com/vLannaAi/noy-db-to/issues/89), [#90](https://github.com/vLannaAi/noy-db-to/pull/90))
+
+- `peerDependencies["@noy-db/hub"]` → **`^0.6.0-pre.0`**, replacing `^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0-pre.0`. The old range was a false promise: `StoreDescriptor`, `StoreFactory` and `StoreLocator` exist on `@noy-db/hub/to` only from `0.6.0-pre`, so `npm i` with an older hub satisfied the peer check and then failed to typecheck. The new floor was verified by compiling this package's `src/` against it.
+
+  The family rule is *widen by appending*, which assumes compatibility only grows. It does not: adopting a symbol that exists only from a given upstream version silently retracts the older branches, and no gate notices. **Narrowing is the honest correction.**
+
+### Hub 0.6.0-pre.16 adopted ([#87](https://github.com/vLannaAi/noy-db-to/pull/87), [#88](https://github.com/vLannaAi/noy-db-to/pull/88))
+
+- Dev pins → `0.6.0-pre.16` for `@noy-db/hub` and `@noy-db/test-adapter-conformance`, moved as a **unit** — a hub-only bump leaves siblings behind and invites the tree to resolve two copies of the same lockstep line.
+
 ## 0.6.0-pre.2
 
 ### Hub 0.6.0-pre.11 adopted ([#83](https://github.com/vLannaAi/noy-db-to/pull/83))
