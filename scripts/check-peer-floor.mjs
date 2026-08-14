@@ -35,12 +35,17 @@
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..')
 const DRY = process.argv.includes('--dry-run')
+
+// Importing this file must not install anything — the pure "plan" half is unit
+// tested, the "execute" half (install + build + typecheck) is what the CI job
+// proves. Only `main()` runs under this guard.
+const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href
 
 // semver is not a direct dependency; resolve it from wherever pnpm put it.
 const require = createRequire(import.meta.url)
@@ -58,29 +63,102 @@ try {
 
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'))
 
-function storeDirs() {
+export function storeDirs() {
   return readdirSync(ROOT)
     .filter((d) => d.startsWith('to-'))
     .map((d) => join(ROOT, d))
     .filter((d) => statSync(d).isDirectory() && existsSync(join(d, 'package.json')))
 }
 
-// ── Plan: group packages by the minimum hub version their range admits ──────
-const groups = new Map() // floor -> [{name, dir, range}]
-for (const dir of storeDirs()) {
-  const pj = readJson(join(dir, 'package.json'))
-  const range = pj.peerDependencies?.['@noy-db/hub']
-  if (!range) continue // check-architecture's hub-peer-range already fails this
-  const floor = semver.minVersion(range)?.version
-  if (!floor) {
-    console.error(`✗ ${pj.name}: cannot compute a minimum version from "${range}"`)
-    process.exit(1)
+/**
+ * The lowest version a range admits, or `null` if there is no such version.
+ *
+ * `semver.minVersion` fails in TWO different ways and only one of them is a
+ * return value:
+ *
+ *   minVersion('not-a-range')   → THROWS TypeError: Invalid comparator
+ *   minVersion('>1.0.0 <1.0.0') → returns null   (well-formed, unsatisfiable)
+ *
+ * The original `minVersion(range)?.version` handled the null and let the throw
+ * escape, so a MALFORMED range — the case the error message below was written
+ * for — killed the script with a raw stack trace naming neither the package nor
+ * the range, and the friendly branch was unreachable. The null path kept the
+ * branch looking exercised. Found across klum-db, doi-db and here.
+ *
+ * There is a THIRD failure that is neither: an UNBOUNDED range.
+ *
+ *   minVersion('') === minVersion('   ') === minVersion('*') === minVersion('x')
+ *     → 0.0.0
+ *
+ * No @noy-db package has ever published 0.0.0. That neither throws nor returns
+ * null, so it silently plans a check against a version that does not exist and
+ * fails minutes later at the install step as "no matching version for
+ * @noy-db/hub@0.0.0" — which reads as a registry problem rather than a
+ * malformed manifest. Worse here than elsewhere: this guard groups by DISTINCT
+ * floor, so one such package invents a phantom 0.0.0 group and the failure is
+ * attributed to the group rather than to the package that caused it.
+ *
+ * The honest reason to reject it: an unbounded range promises EVERY version, so
+ * there is no floor that could test it. It is not malformed — it is
+ * unfalsifiable. `validRange` normalises all five spellings to '*'.
+ *
+ * NOTE for refactors: `^0.6.0-pre.0` must floor at `0.6.0-pre.0`, NOT `0.6.0`.
+ * Every range in this repo is a pre-release range; flooring at the release
+ * would test a HIGHER version than the range admits, so a range that is false
+ * for pre-releases would pass. The two values look alike at a glance.
+ */
+export function floorOf(range) {
+  try {
+    if (semver.validRange(range) === '*') return null
+    return semver.minVersion(range)?.version ?? null
+  } catch {
+    return null
   }
-  if (!groups.has(floor)) groups.set(floor, [])
-  groups.get(floor).push({ name: pj.name, dir, range })
 }
 
-console.log(`Peer-floor check — ${groups.size} distinct floor(s) across ${storeDirs().length} stores\n`)
+/**
+ * The root package.json text with `pnpm.overrides['@noy-db/hub']` pinned to
+ * `floor`. Pure: takes and returns text, so the caller keeps the ORIGINAL
+ * bytes and restores them verbatim rather than re-serialising.
+ */
+export function pinnedRootText(originalText, floor) {
+  const pj = JSON.parse(originalText)
+  pj.pnpm = { ...(pj.pnpm ?? {}), overrides: { ...(pj.pnpm?.overrides ?? {}), '@noy-db/hub': floor } }
+  return JSON.stringify(pj, null, 2) + '\n'
+}
+
+// ── Plan: group packages by the minimum hub version their range admits ──────
+export function planGroups() {
+  const groups = new Map() // floor -> [{name, dir, range}]
+  for (const dir of storeDirs()) {
+    const pj = readJson(join(dir, 'package.json'))
+    const range = pj.peerDependencies?.['@noy-db/hub']
+    if (!range) continue // check-architecture's hub-peer-range already fails this
+    const floor = floorOf(range)
+    if (!floor) {
+      console.error(`✗ ${pj.name}: no floor to check "${range}" against.`)
+      console.error(`    An unbounded range (*, x, blank) promises every version, so nothing`)
+      console.error(`    falsifies it. A malformed or unsatisfiable range has no minimum at all.`)
+      console.error(`    Declare a real floor, e.g. "^0.6.0-pre.0".`)
+      process.exit(1)
+    }
+    if (!groups.has(floor)) groups.set(floor, [])
+    groups.get(floor).push({ name: pj.name, dir, range })
+  }
+  return groups
+}
+
+function main() {
+const groups = planGroups()
+
+// Report what was actually GROUPED, not how many stores exist. A package whose
+// peer range is absent or empty is skipped above (check-architecture fails it
+// by name, and exits 1), and printing the directory count would claim coverage
+// this run does not have.
+const checked = [...groups.values()].reduce((n, pkgs) => n + pkgs.length, 0)
+const total = storeDirs().length
+const scope = checked === total ? `${total} stores` : `${checked} of ${total} stores (${total - checked} skipped — no peer range)`
+console.log(`Peer-floor check — ${groups.size} distinct floor(s) across ${scope}\n`)
 for (const [floor, pkgs] of groups) {
   console.log(`  @noy-db/hub@${floor}`)
   for (const p of pkgs) console.log(`     ${p.name.padEnd(28)} ${p.range}`)
@@ -108,9 +186,7 @@ const run = (cmd, args) =>
 try {
   for (const [floor, pkgs] of groups) {
     console.log(`── installing @noy-db/hub@${floor} …`)
-    const pj = JSON.parse(rootOriginal)
-    pj.pnpm = { ...(pj.pnpm ?? {}), overrides: { ...(pj.pnpm?.overrides ?? {}), '@noy-db/hub': floor } }
-    writeFileSync(rootPath, JSON.stringify(pj, null, 2) + '\n')
+    writeFileSync(rootPath, pinnedRootText(rootOriginal, floor))
 
     try {
       run('pnpm', ['install', '--no-frozen-lockfile', '--silent'])
@@ -177,3 +253,6 @@ if (failures.length) {
   process.exit(1)
 }
 console.log('✓ every store compiles against the oldest @noy-db/hub its peer range admits')
+}
+
+if (isMain) main()
