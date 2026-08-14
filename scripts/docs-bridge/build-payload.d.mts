@@ -60,8 +60,15 @@ export function buildPayload(opts: BuildPayloadOpts): BridgePayload
 /**
  * True when the payload shows real work: some package was `added`/`updated`,
  * or carries a non-empty changelog body.
+ *
+ * The parameter is narrowed to the two fields the function actually reads, not
+ * the whole `BridgePayload`. A full payload still satisfies it; requiring one
+ * would force every caller and test to construct a dozen irrelevant fields to
+ * exercise a two-field predicate.
  */
-export function hasRealDelta(payload: BridgePayload): boolean
+export function hasRealDelta(payload: {
+  packages: readonly Pick<BridgePackageEntry, 'changeType' | 'changelog'>[]
+}): boolean
 
 /**
  * True when a failed `npm view` call means the package has never been published
