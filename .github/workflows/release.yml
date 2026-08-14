@@ -124,6 +124,43 @@ jobs:
           fi
           echo "✅ noy-db-to@$PKG_VERSION matches release tag v$VERSION"
 
+      # The dist-tag is routed entirely by the "Set as a pre-release" checkbox on
+      # the Release form, so a forgotten tick publishes a pre-release to @latest.
+      # That is not self-healing: repairing it needs `npm dist-tag`, which is an
+      # account-changing write requiring an interactive 2FA OTP, so CI can never
+      # do it.
+      #
+      # This repo is the one that most needs the guard and was the last to get
+      # it. Its @latest is already broken — all 17 to-*@0.5.0 versions are
+      # deprecated, and it cannot be repaired with anything short of a stable
+      # release, which is blocked. Landing a pre-release on top of that would
+      # add a second, independent defect to the same tag.
+      #
+      # It has also already happened here by a different route: to-browser-fs
+      # debuted in 0.6.0-pre.2, and npm sets `latest` on a package's FIRST
+      # publish regardless of --tag, so to-browser-fs@latest is pinned to a
+      # pre-release and later `--tag next` publishes never move it. That path is
+      # not what this step catches — no guard can, it is npm's own behaviour —
+      # but it is the same end state, which is the point.
+      #
+      # Ported from noy-db-ui#22 via klum-db#81 / noy-db#1003; mechanism is
+      # identical so all four repos behave the same.
+      #
+      # Only this direction is blocked: a STABLE version published to @next is
+      # harmless and recoverable, so it stays allowed.
+      - name: Refuse a semver pre-release routed to @latest
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          if [ "${{ github.event.release.prerelease }}" != "true" ] && [ "${VERSION#*-}" != "$VERSION" ]; then
+            echo "::error::$VERSION is a semver pre-release, but this Release is not marked as a pre-release."
+            echo "::error::Publishing would route it to @latest, which is already broken here (17 deprecated 0.5.0 versions)."
+            echo "::error::Tick 'Set as a pre-release' on the Release and re-run."
+            exit 1
+          fi
+          echo "✅ routing check passed (version=$VERSION, prerelease=${{ github.event.release.prerelease }})"
+
   # ── Gate 1b: the declared peer range is TRUE at its floor ────────────
   #
   # `verify` above proves nothing about the peer range: every one of its gates
