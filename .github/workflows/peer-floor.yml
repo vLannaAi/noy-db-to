@@ -20,8 +20,21 @@ name: Peer floor
 # Triggers are scoped to when a range or a dependency can actually change:
 # any package.json edit, plus manual dispatch. Running it on every push would
 # cost two installs for changes that cannot affect the answer.
+#
+# `workflow_call` exists because those path-scoped triggers match NO part of a
+# `release` event — so before it was added, release.yml could publish a peer
+# range this guard would have rejected. The gate that only runs when it cannot
+# stop anything is the same defect class it was written to catch. The caller
+# MUST pass `ref`: without it a release is gated against the default branch
+# rather than against the tag being published.
 
 on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Ref to check out — the release TAG, not the default branch'
+        required: false
+        type: string
   pull_request:
     paths: ['**/package.json', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
   push:
@@ -29,9 +42,27 @@ on:
     paths: ['**/package.json', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
   workflow_dispatch:
 
+# The load-bearing half here is `cancel-in-progress`, not the group key.
+#
+# A job that gates a publish must never be cancellable. The release path
+# happens to be isolated already — a `release` event runs under the TAG
+# (`refs/tags/vX`), so it never shares a group with a push to `main` — but that
+# is a property of how GitHub sets `github.ref` for release events, NOT
+# something this config states or guarantees. Scoping cancellation to
+# `pull_request` converts that coincidence into a stated invariant. PRs are the
+# only place cancelling a superseded run is a saving rather than a hazard.
+#
+# Residual, and deliberately left alone: a direct push to `main` and
+# release.yml's push-path call DO share a group — both are `event_name: push`
+# on `refs/heads/main` (inside a `workflow_call`, `github.event_name` and
+# `github.ref` are the CALLER's, and `inputs.ref` falls back to `github.ref`
+# there anyway). With cancel-in-progress false they QUEUE rather than cancel,
+# which is the safe outcome. Do not widen the key to separate them.
+#
+# Family standard — klum-db, doi-db and noy-db-ui carry this block verbatim.
 concurrency:
-  group: peer-floor-${{ github.ref }}
-  cancel-in-progress: true
+  group: peer-floor-${{ inputs.ref || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -41,7 +72,11 @@ jobs:
     name: Compile against the advertised floor
     runs-on: ubuntu-latest
     steps:
+      # `inputs.ref` is empty on the pull_request / push / dispatch paths, and
+      # checkout then falls back to the triggering ref — its normal behavior.
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v5
         with:
           node-version: '22'

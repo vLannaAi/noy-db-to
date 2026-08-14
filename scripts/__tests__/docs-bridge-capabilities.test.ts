@@ -1,8 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { writeFileSync, mkdtempSync } from 'node:fs'
+import { writeFileSync, mkdtempSync, readdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
+
+/**
+ * Every `to-*` package directory in the repo, derived from the filesystem
+ * rather than transcribed as a count.
+ *
+ * #93: `to-browser-fs` was missing from WIRING, so the docs-bridge job threw
+ * on both 0.6.0-pre.2 and 0.6.0-pre.3 — no payload asset, no doc-sync issue —
+ * while each run still reported success, because that job is deliberately
+ * non-fatal. A hard-coded `toHaveLength(n)` does not catch a missing entry;
+ * it only catches someone forgetting to bump the number. Deriving the
+ * expected set moves the failure into the PR that adds the store.
+ */
+function shippedStoreDirs(): string[] {
+  const root = fileURLToPath(new URL('../../', import.meta.url))
+  return readdirSync(root)
+    .filter((d) => d.startsWith('to-') && existsSync(join(root, d, 'package.json')))
+    .sort()
+}
 
 // Minimal localStorage shim — to-browser-local captures the global.
 if (!('localStorage' in globalThis)) {
@@ -79,7 +98,11 @@ const WIRING: Record<string, { factory: string; shape: 'record' | 'vault'; condi
 }
 
 describe('docs-bridge capability dump', () => {
-  it('constructs all 18 stores and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
+  it('WIRING covers every shipped to-* package', () => {
+    expect(Object.keys(WIRING).sort()).toEqual(shippedStoreDirs())
+  })
+
+  it('constructs every shipped store and dumps factory/shape/capabilities (writes DOCS_BRIDGE_CAPS_OUT when set)', () => {
     const dump: Record<string, { factory: string; shape: string; capabilities: object | null; optionDependent: boolean; conditionalBits?: readonly string[] }> = {}
     for (const [dir, w] of Object.entries(WIRING)) {
       const store = w.make() as { capabilities?: object }
@@ -94,7 +117,7 @@ describe('docs-bridge capability dump', () => {
         ...(w.conditionalBits?.length ? { conditionalBits: w.conditionalBits } : {}),
       }
     }
-    expect(Object.keys(dump)).toHaveLength(18)
+    expect(Object.keys(dump).sort()).toEqual(shippedStoreDirs())
 
     // Per-bit option-dependence (vLannaAi/noy-db#930): to-turso's txAtomic is
     // the only client-conditional bit today; every other entry omits the field.

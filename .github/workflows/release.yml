@@ -124,6 +124,27 @@ jobs:
           fi
           echo "✅ noy-db-to@$PKG_VERSION matches release tag v$VERSION"
 
+  # ── Gate 1b: the declared peer range is TRUE at its floor ────────────
+  #
+  # `verify` above proves nothing about the peer range: every one of its gates
+  # runs against the DEV PIN, so all of them stay green no matter how wrong the
+  # range is. Only this job installs a different hub.
+  #
+  # It lives in its own workflow rather than as a step in `verify` on purpose —
+  # `verify` carries a pnpm store cache, and peer-floor.yml deliberately has
+  # none, with a comment explaining why. Inlining it would put that cache in
+  # front of the guard and leave the reasoning stranded in a file that no
+  # longer holds the check.
+  #
+  # `ref` must be passed: the called workflow would otherwise check out the
+  # default branch and gate `main` instead of the tag being published.
+  peer-floor:
+    name: Peer floor
+    if: github.event_name == 'release' || github.event.inputs.confirm == 'PUBLISH' || github.event_name == 'push'
+    uses: ./.github/workflows/peer-floor.yml
+    with:
+      ref: ${{ github.event.release.tag_name || github.ref }}
+
   # ── Gate 2: publish with provenance ──────────────────────────────────
   #
   # Explicit event guard: publish only runs on:
@@ -136,7 +157,7 @@ jobs:
   # could auto-publish to npm without explicit confirmation.
   publish:
     name: Publish to npm
-    needs: verify
+    needs: [verify, peer-floor]
     if: |
       github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'PUBLISH')
@@ -393,3 +414,24 @@ jobs:
           gh issue create -R vLannaAi/noy-db-docs \
             --title "doc-sync needed: noy-db-to $TAG @$CHANNEL" \
             --body-file /tmp/doc-sync-issue-body.md
+
+      # This job is continue-on-error, which is right — a docs outage must not
+      # fail a publish that already succeeded. But it means a failure here is a
+      # red job inside a green run, with nothing in the summary to notice. That
+      # is exactly how #93 hid: the bridge threw on 0.6.0-pre.2 AND pre.3, and
+      # both runs reported success. Make the failure say so out loud.
+      - name: Report bridge failure loudly
+        if: failure()
+        run: |
+          {
+            echo "### ⚠️ Docs bridge FAILED — publish was NOT affected"
+            echo ""
+            echo "The release published fine, but the docs-bridge job did not complete."
+            echo "Likely consequences: **no \`docs-bridge.json\` asset** on the release,"
+            echo "and **no doc-sync issue** opened in noy-db-docs."
+            echo ""
+            echo "- Release: \`${{ github.event.release.tag_name }}\`"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Check the asset is present before treating doc-sync as done, then run it by hand."
+          } >> "$GITHUB_STEP_SUMMARY"
