@@ -27,13 +27,41 @@ describe('floorOf — the two ways semver.minVersion fails', () => {
     expect(floorOf('>1.0.0 <1.0.0')).toBeNull()
   })
 
-  // Returning null rather than throwing is what keeps the caller's friendly
-  // `✗ <pkg>: cannot compute a minimum version from "<range>"` reachable.
-  // Anything that throws here surfaces as a stack trace naming neither.
-  it('never throws, whatever it is handed', () => {
-    for (const bad of ['', ' ', 'latest', '^^1.0.0', 'v', '>=', '1.2.3.4', 'not-a-range', '>1.0.0 <1.0.0']) {
-      expect(() => floorOf(bad), bad).not.toThrow()
-    }
+  // An UNBOUNDED range is the third failure and the nastiest: semver floors
+  // '', '   ', '*', 'x' and 'X' at 0.0.0, which neither throws nor returns
+  // null. No @noy-db package has ever published 0.0.0, so the run plans a
+  // phantom group and dies minutes later at install with "no matching version"
+  // — blaming the registry instead of the manifest. This guard groups by
+  // DISTINCT floor, so the failure is also attributed to a group rather than
+  // to the package that caused it.
+  it.each(['', '   ', '*', 'x', 'X'])('rejects the unbounded range %j rather than flooring it at 0.0.0', (range) => {
+    expect(floorOf(range)).toBeNull()
+  })
+
+  // THE PROPERTY, not the named cases. Asserting only `.not.toThrow()` over
+  // this table is what let the 0.0.0 bug through in the first place: '' does
+  // not throw, it silently answers 0.0.0. A floor is only useful if it is a
+  // version that could actually exist, so assert that — the named rows above
+  // are regressions, this row is what finds the ones nobody has named yet.
+  // Note '0.0.0' is deliberately NOT in this table: it is a well-formed BOUNDED
+  // range whose floor genuinely is 0.0.0, so it belongs with the positive cases
+  // below. The defect is reaching 0.0.0 from an UNBOUNDED range, not the value.
+  it.each([
+    '', ' ', '   ', '*', 'x', 'X', 'latest', 'next', '^^1.0.0', 'v', '>=', '~',
+    '1.2.3.4', 'not-a-range', '>1.0.0 <1.0.0', '||', '^', undefined, null, 42, {},
+  ])('floorOf(%j) is null or a real version — never 0.0.0, never a throw', (range) => {
+    let out: unknown
+    expect(() => { out = floorOf(range) }, `${JSON.stringify(range)} threw`).not.toThrow()
+    if (out === null) return
+    expect(typeof out, `${JSON.stringify(range)} -> ${JSON.stringify(out)}`).toBe('string')
+    expect(out, 'no unbounded/invalid range may yield a floor of 0.0.0').not.toBe('0.0.0')
+  })
+
+  it('still floors an EXPLICIT 0.0.0 range at 0.0.0 — that one is honest', () => {
+    // Rejecting the value rather than the unboundedness would be the wrong fix:
+    // a package really pinned to 0.0.0 should fail at install naming itself,
+    // which is the correct, legible outcome.
+    expect(floorOf('0.0.0')).toBe('0.0.0')
   })
 })
 

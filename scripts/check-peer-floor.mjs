@@ -85,6 +85,23 @@ export function storeDirs() {
  * the range, and the friendly branch was unreachable. The null path kept the
  * branch looking exercised. Found across klum-db, doi-db and here.
  *
+ * There is a THIRD failure that is neither: an UNBOUNDED range.
+ *
+ *   minVersion('') === minVersion('   ') === minVersion('*') === minVersion('x')
+ *     → 0.0.0
+ *
+ * No @noy-db package has ever published 0.0.0. That neither throws nor returns
+ * null, so it silently plans a check against a version that does not exist and
+ * fails minutes later at the install step as "no matching version for
+ * @noy-db/hub@0.0.0" — which reads as a registry problem rather than a
+ * malformed manifest. Worse here than elsewhere: this guard groups by DISTINCT
+ * floor, so one such package invents a phantom 0.0.0 group and the failure is
+ * attributed to the group rather than to the package that caused it.
+ *
+ * The honest reason to reject it: an unbounded range promises EVERY version, so
+ * there is no floor that could test it. It is not malformed — it is
+ * unfalsifiable. `validRange` normalises all five spellings to '*'.
+ *
  * NOTE for refactors: `^0.6.0-pre.0` must floor at `0.6.0-pre.0`, NOT `0.6.0`.
  * Every range in this repo is a pre-release range; flooring at the release
  * would test a HIGHER version than the range admits, so a range that is false
@@ -92,6 +109,7 @@ export function storeDirs() {
  */
 export function floorOf(range) {
   try {
+    if (semver.validRange(range) === '*') return null
     return semver.minVersion(range)?.version ?? null
   } catch {
     return null
@@ -118,7 +136,10 @@ export function planGroups() {
     if (!range) continue // check-architecture's hub-peer-range already fails this
     const floor = floorOf(range)
     if (!floor) {
-      console.error(`✗ ${pj.name}: cannot compute a minimum version from "${range}"`)
+      console.error(`✗ ${pj.name}: no floor to check "${range}" against.`)
+      console.error(`    An unbounded range (*, x, blank) promises every version, so nothing`)
+      console.error(`    falsifies it. A malformed or unsatisfiable range has no minimum at all.`)
+      console.error(`    Declare a real floor, e.g. "^0.6.0-pre.0".`)
       process.exit(1)
     }
     if (!groups.has(floor)) groups.set(floor, [])
@@ -130,7 +151,14 @@ export function planGroups() {
 function main() {
 const groups = planGroups()
 
-console.log(`Peer-floor check — ${groups.size} distinct floor(s) across ${storeDirs().length} stores\n`)
+// Report what was actually GROUPED, not how many stores exist. A package whose
+// peer range is absent or empty is skipped above (check-architecture fails it
+// by name, and exits 1), and printing the directory count would claim coverage
+// this run does not have.
+const checked = [...groups.values()].reduce((n, pkgs) => n + pkgs.length, 0)
+const total = storeDirs().length
+const scope = checked === total ? `${total} stores` : `${checked} of ${total} stores (${total - checked} skipped — no peer range)`
+console.log(`Peer-floor check — ${groups.size} distinct floor(s) across ${scope}\n`)
 for (const [floor, pkgs] of groups) {
   console.log(`  @noy-db/hub@${floor}`)
   for (const p of pkgs) console.log(`     ${p.name.padEnd(28)} ${p.range}`)
