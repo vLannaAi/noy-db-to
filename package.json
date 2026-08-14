@@ -14,7 +14,7 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json --noEmit",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:peer-floor": "node scripts/check-peer-floor.mjs"
   },

@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildPayload, hasRealDelta, isFirstPublishFromError } from '../docs-bridge/build-payload.mjs'
+import type { BridgePackageEntry } from '../docs-bridge/build-payload.d.mts'
 
 let root: string
 const caps = {
@@ -111,8 +112,12 @@ describe('buildPayload', () => {
 })
 
 describe('hasRealDelta', () => {
-  const pkg = (over: Partial<{ changeType: string; changelog: string | null }>) =>
-    ({ name: '@noy-db/to-x', dir: 'to-x', version: '0.9.0', changeType: 'version-only', changelog: null, ...over })
+  // Only the two fields hasRealDelta reads — its parameter is narrowed to
+  // exactly these, so constructing a full BridgePackageEntry here would be
+  // inventing a dozen values the predicate never looks at.
+  type DeltaEntry = Pick<BridgePackageEntry, 'changeType' | 'changelog'>
+  const pkg = (over: Partial<DeltaEntry> = {}): DeltaEntry =>
+    ({ changeType: 'version-only', changelog: null, ...over })
 
   it('is false when every package is version-only with no changelog', () => {
     expect(hasRealDelta({ packages: [pkg({}), pkg({})] })).toBe(false)
