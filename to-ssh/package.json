@@ -45,9 +45,9 @@
     }
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0-pre.16",
+    "@noy-db/hub": "0.6.0-pre.18",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0-pre.16"
+    "@noy-db/test-adapter-conformance": "0.6.0-pre.18"
   },
   "keywords": [
     "noy-db",
