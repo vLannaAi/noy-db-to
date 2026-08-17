@@ -232,10 +232,14 @@ export function toCloudflareD1(options: D1StoreOptions): NoydbStore {
       const snap: VaultSnapshot = {}
       for (const row of res.results ?? []) {
         const collection = row.collection as string
-        // Internal collections (`_keyring`, `_sync`) are the vault's own
-        // bookkeeping and must not appear in a snapshot — required by the store
-        // contract, with `@noy-db/to-file` setting the reference behaviour via
-        // the same `_`-prefix rule.
+        // Internal collections are the vault's own bookkeeping and must not appear
+        // in a snapshot — required by the store contract, with `@noy-db/to-file`
+        // setting the reference behaviour (#26) via the same `_`-prefix rule.
+        //
+        // The RULE is the prefix, not a fixed list. `_keyring`, `_sync` and `_head`
+        // (hub 0.6.0-pre.18's `withVaultHead()`, #1044) are examples — a future
+        // reserved collection is excluded automatically, and enumerating them here
+        // would go stale silently, since nothing checks a comment.
         if (collection.startsWith('_')) continue
         const id = row.id as string
         const bucket = snap[collection] ?? (snap[collection] = {})

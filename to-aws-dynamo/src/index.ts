@@ -318,7 +318,7 @@ export function toAwsDynamo(options: DynamoOptions): NoydbStore {
         const sortKey = item['sk'] as string
         const { collection, id } = parseSk(sortKey)
 
-        if (collection.startsWith('_')) continue // skip _keyring, _sync
+        if (collection.startsWith('_')) continue // skip any _-prefixed internal collection (_keyring, _sync, _head, …)
 
         if (!snapshot[collection]) {
           snapshot[collection] = {}

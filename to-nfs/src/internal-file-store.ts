@@ -123,7 +123,7 @@ export function jsonFile(options: JsonFileOptions): NoydbStore {
       try {
         const collections = await readdir(compDir)
         for (const collName of collections) {
-          if (collName.startsWith('_')) continue // skip _keyring, _sync
+          if (collName.startsWith('_')) continue // skip any _-prefixed internal collection (_keyring, _sync, _head, …)
           const collPath = join(compDir, collName)
           const collStat = await stat(collPath)
           if (!collStat.isDirectory()) continue
