@@ -370,10 +370,18 @@ jobs:
           {
             echo "### ⚠️ dist-tag alignment FAILED — the publish itself succeeded"
             echo ""
-            echo "\`@next\` may still point at a version OLDER than \`@latest\` for one or more"
-            echo "packages, so \`npm i <pkg>@next\` resolves the wrong thing."
+            echo "The script's own log distinguishes two cases and they need OPPOSITE actions."
+            echo "Read it before touching anything:"
             echo ""
-            echo "Recover with: \`npm dist-tag add <pkg>@${GITHUB_REF_NAME#v} next\` (needs an OTP locally)."
+            echo "- **\`dist-tag add\` FAILED** — those packages genuinely need repair, and the"
+            echo "  log lists the exact command per package."
+            echo "- **refused on the before-state** — \`latest\` was not the expected version, so"
+            echo "  nothing was written. Do NOT hand-repair; check that the stable actually"
+            echo "  published and that the version passed in was right."
+            echo ""
+            echo "A package written-but-unconfirmed is NOT a failure and does not reach this"
+            echo "block — \`npm view\` is CDN-served and lags writes. Repairing one of those"
+            echo "hand-edits a correct release."
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Docs bridge (spec: docs/superpowers/specs/2026-07-30-docs-bridge-design.md) ──

@@ -93,77 +93,111 @@ if (!isMain) { /* imported for the pure helpers — stop here */ } else {
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
 const version = args.find(a => a.startsWith('--version='))?.slice('--version='.length)
-
-const fail = (msg) => { console.error(`[align] ✗ ${msg}`); process.exitCode = 1 }
-
-if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
-  console.error(`[align] --version must be a STABLE semver, got: ${version ?? '<missing>'}`)
-  console.error(`[align] a pre-release needs no alignment — publishing one already sets \`next\`.`)
-  process.exit(1)
-}
+const settleMs = Number(args.find(a => a.startsWith('--settle-ms='))?.slice('--settle-ms='.length) ?? 3000)
+const attempts = Number(args.find(a => a.startsWith('--attempts='))?.slice('--attempts='.length) ?? 5)
 
 const summary = []
 const note = (l) => { console.log(`[align] ${l}`); summary.push(l) }
+const hardFail = (m) => { console.error(`[align] \u2717 ${m}`); summary.push(`\u2717 ${m}`); process.exitCode = 1 }
+/** Synchronous sleep — this script is sync throughout and settling is the point. */
+const sleep = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) }
 
-// npm reports write-path auth failures as 404, never 401 — deliberately, so
-// status codes cannot probe which private packages exist. Establish identity
-// first, or a later 404 is ambiguous between "bad token" and "no such package".
-let whoami = ''
+if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
+  console.error(`[align] --version must be a STABLE semver, got: ${version ?? '<missing>'}`)
+  console.error('[align] a pre-release needs no alignment — publishing one already sets `next`.')
+  process.exit(1)
+}
+
+// npm reports write-path auth failures as 404, never 401 — deliberately, so status
+// codes cannot probe which private packages exist. Establish identity first, or a
+// later 404 is ambiguous between "bad token" and "no such package".
 try {
-  whoami = execFileSync('npm', ['whoami'], { encoding: 'utf8', stdio: ['ignore','pipe','pipe'] }).trim()
-  note(`npm user: \`${whoami}\``)
+  note(`npm user: \`${execFileSync('npm', ['whoami'], { encoding: 'utf8', stdio: ['ignore','pipe','pipe'] }).trim()}\``)
 } catch {
-  console.error('[align] ✗ `npm whoami` failed — the token is missing or invalid.')
+  console.error('[align] \u2717 `npm whoami` failed — the token is missing or invalid.')
   console.error('[align]   Every later failure would surface as a 404 and look like a missing package.')
   process.exit(1)
 }
 
-const pkgs = publishedPackages()
-note(`aligning \`next\` → \`${version}\` for ${pkgs.length} derived packages${dryRun ? ' (dry run)' : ''}`)
+const readTags = (pkg) => JSON.parse(execFileSync('npm', ['view', pkg, 'dist-tags', '--json'],
+  { encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }))
 
+const pkgs = publishedPackages()
+note(`aligning \`next\` \u2192 \`${version}\` for ${pkgs.length} derived packages${dryRun ? ' (dry run)' : ''}`)
+
+// ── PHASE 1: decide and write ────────────────────────────────────────────────
+const wrote = []
+const writeFailed = []
 for (const pkg of pkgs) {
   let tags
-  try {
-    tags = JSON.parse(execFileSync('npm', ['view', pkg, 'dist-tags', '--json'],
-      { encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }))
-  } catch {
-    fail(`\`${pkg}\` — cannot read dist-tags`)
-    continue
-  }
+  try { tags = readTags(pkg) } catch { hardFail(`\`${pkg}\` — cannot read dist-tags`); continue }
 
-  // BEFORE-STATE ASSERTION. Blindly running `dist-tag add <pkg>@<v> next` is
-  // correct when the stable really published and catastrophic when --version is
-  // wrong. `latest` must ALREADY be the target: the publish sets it, so if it
-  // is not there, this is running against the wrong version or too early.
-  const decision = decideAction(tags, version)
-  if (decision.action === 'refuse') { fail(`\`${pkg}\` — refusing: ${decision.reason}`); continue }
-  if (decision.action === 'skip') { note(`- \`${pkg}\` — ${decision.reason}`); continue }
-  if (dryRun) { note(`- \`${pkg}\` — would move \`next\`: ${decision.reason}`); continue }
+  const d = decideAction(tags, version)
+  if (d.action === 'refuse') { hardFail(`\`${pkg}\` — refusing: ${d.reason}`); continue }
+  if (d.action === 'skip')   { note(`- \`${pkg}\` — ${d.reason}`); continue }
+  if (dryRun)                { note(`- \`${pkg}\` — would move \`next\`: ${d.reason}`); continue }
 
   try {
     execFileSync('npm', ['dist-tag', 'add', `${pkg}@${version}`, 'next'], { stdio: 'pipe' })
+    wrote.push({ pkg, from: tags.next })
   } catch (err) {
-    fail(`\`${pkg}\` — dist-tag add failed: ${(err?.stderr?.toString() ?? err?.message ?? '').split('\n')[0]}`)
-    continue
+    writeFailed.push({ pkg, detail: (err?.stderr?.toString() ?? err?.message ?? '').split('\n')[0] })
   }
+}
 
-  // A zero exit is not evidence the tag moved. Ask the registry.
-  try {
-    const after = execFileSync('npm', ['view', pkg, 'dist-tags.next'],
-      { encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }).trim()
-    if (after !== version) fail(`\`${pkg}\` — command succeeded but registry still reports \`next\`=${after}`)
-    else note(`- \`${pkg}\` — \`next\`: ${tags.next} → ${version} ✓ verified`)
-  } catch {
-    fail(`\`${pkg}\` — cannot verify \`next\` after the write`)
-  }
+// ── PHASE 2: confirm, with settling ──────────────────────────────────────────
+//
+// THIS IS SEPARATED FROM THE WRITE ON PURPOSE. `npm view` is CDN-served, so a
+// read immediately after `dist-tag add` routinely returns the PREVIOUS value.
+// noy-db's equivalent job read back inline and reported all 52 packages failed
+// while all 52 had in fact succeeded — then printed 52 repair commands for
+// packages needing no repair. Anyone following that log hand-repairs a correct
+// release, one OTP at a time.
+//
+// The earlier version of THIS script had the identical shape. It had written
+// "a zero exit is not evidence the tag moved" into itself and then treated one
+// immediate read as evidence it had NOT moved — the same mistake, pointed the
+// other way. A stale read is not evidence either.
+let pending = wrote
+for (let i = 1; i <= attempts && pending.length; i++) {
+  sleep(settleMs)
+  pending = pending.filter(({ pkg }) => {
+    try { return readTags(pkg).next !== version } catch { return true }
+  })
+  if (pending.length) note(`  confirming… ${pending.length} not yet visible after attempt ${i}/${attempts}`)
+}
+
+for (const { pkg, from } of wrote) {
+  if (!pending.some(p => p.pkg === pkg)) note(`- \`${pkg}\` — \`next\`: ${from} \u2192 ${version} \u2713 confirmed`)
+}
+
+// ── Classify. "could not confirm" is NOT "failed" — opposite instructions ─────
+for (const { pkg, detail } of writeFailed) hardFail(`\`${pkg}\` — dist-tag add FAILED: ${detail}`)
+
+if (pending.length) {
+  note('')
+  note(`\u26a0\ufe0f ${pending.length} package(s) written but NOT CONFIRMED after ${attempts} attempts:`)
+  for (const { pkg } of pending) note(`   - \`${pkg}\``)
+  note('')
+  note('The `dist-tag add` for these reported SUCCESS. `npm view` is CDN-served and')
+  note('can lag a write by minutes, so this is most likely propagation, not failure.')
+  note('**CHECK before repairing** — re-running a repair on a correct tag is how a')
+  note('good release gets hand-edited into a bad one:')
+  for (const { pkg } of pending) note(`   npm view ${pkg} dist-tags`)
 }
 
 if (process.env['GITHUB_STEP_SUMMARY']) {
-  const head = process.exitCode ? '### ⚠️ dist-tag alignment FAILED' : '### dist-tag alignment'
+  const head = process.exitCode
+    ? '### \u26a0\ufe0f dist-tag alignment FAILED'
+    : pending.length ? '### dist-tag alignment — written, confirmation pending' : '### dist-tag alignment'
   appendFileSync(process.env['GITHUB_STEP_SUMMARY'], `${head}\n\n${summary.join('\n')}\n\n`)
 }
-if (process.exitCode) {
-  console.error('[align] one or more packages were NOT aligned — `@next` is behind `@latest` for those.')
-  console.error(`[align] recover with: npm dist-tag add <pkg>@${version} next`)
+
+// Exit non-zero ONLY for writes that actually failed. An unconfirmed write is
+// reported loudly and does not fail the job: the write returned success, and
+// the read is the unreliable half.
+if (writeFailed.length) {
+  console.error('[align] one or more dist-tag writes FAILED — those packages need repair:')
+  for (const { pkg } of writeFailed) console.error(`[align]   npm dist-tag add ${pkg}@${version} next`)
 }
 }
