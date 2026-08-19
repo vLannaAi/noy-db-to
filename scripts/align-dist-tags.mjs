@@ -93,8 +93,8 @@ if (!isMain) { /* imported for the pure helpers — stop here */ } else {
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
 const version = args.find(a => a.startsWith('--version='))?.slice('--version='.length)
-const settleMs = Number(args.find(a => a.startsWith('--settle-ms='))?.slice('--settle-ms='.length) ?? 3000)
-const attempts = Number(args.find(a => a.startsWith('--attempts='))?.slice('--attempts='.length) ?? 5)
+const settleMs = Number(args.find(a => a.startsWith('--settle-ms='))?.slice('--settle-ms='.length) ?? 15000)
+const attempts = Number(args.find(a => a.startsWith('--attempts='))?.slice('--attempts='.length) ?? 4)
 
 const summary = []
 const note = (l) => { console.log(`[align] ${l}`); summary.push(l) }
@@ -147,6 +147,24 @@ for (const pkg of pkgs) {
 
 // ── PHASE 2: confirm, with settling ──────────────────────────────────────────
 //
+// ⛔ THE RETRY LOOP IS THE MECHANISM. THE TWO-PASS SPLIT IS NOT.
+//
+// It is tempting to read the write/confirm separation as the fix, because it is
+// the structurally satisfying half. It is not, and porting it without a retry
+// budget that can outlast the cache lands STRICTLY WORSE than the original —
+// the same shape as porting a changelog parser without checking the heading
+// style it matches.
+//
+// The reason: in a two-pass design the settling a package gets for free is
+// simply the time spent writing everything AFTER it. noy-db has 52 packages at
+// ~1.5s per write, so its FIRST package got ~80s before anything read it back.
+// This repo has 18. The first gets ~25s and THE LAST GETS ESSENTIALLY ZERO.
+//
+// So the hazard here is the TAIL, and it presents as "the last two or three did
+// not land" — which is exactly what a genuine partial failure looks like, and
+// therefore the most believable false alarm available. The retry budget below
+// is what has to cover it, independent of how many packages there are.
+//
 // THIS IS SEPARATED FROM THE WRITE ON PURPOSE. `npm view` is CDN-served, so a
 // read immediately after `dist-tag add` routinely returns the PREVIOUS value.
 // noy-db's equivalent job read back inline and reported all 52 packages failed
@@ -180,13 +198,15 @@ for (const pkg of pkgs) {
 // is to distrust a uniform, tidy or reassuring result — and it is aimed entirely
 // at GREEN. A red result gets no such scrutiny, and noy-db nearly reported a
 // failed release off the back of one. Uniformity is a tell in both directions.
-let pending = wrote
+const stillStale = ({ pkg }) => { try { return readTags(pkg).next !== version } catch { return true } }
+
+// Check once for free before waiting — most packages confirm immediately and
+// should cost nothing. Only then start burning the retry budget.
+let pending = wrote.filter(stillStale)
 for (let i = 1; i <= attempts && pending.length; i++) {
+  note(`  ${pending.length} not yet visible — settling ${settleMs}ms (attempt ${i}/${attempts})`)
   sleep(settleMs)
-  pending = pending.filter(({ pkg }) => {
-    try { return readTags(pkg).next !== version } catch { return true }
-  })
-  if (pending.length) note(`  confirming… ${pending.length} not yet visible after attempt ${i}/${attempts}`)
+  pending = pending.filter(stillStale)
 }
 
 for (const { pkg, from } of wrote) {
