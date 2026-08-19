@@ -1,5 +1,30 @@
 # @noy-db/to-browser-fs
 
+## 0.6.0-pre.6
+
+### Hub dev pin moved to `0.6.0-pre.23`
+
+- **The peer range is unchanged**, and that is the important part: `^0.6.0-pre.0` (`^0.6.0-pre.11` for `to-drive`/`to-icloud`). A consumer's floor is the peer range, never this package's dev pin.
+- **Existing installs:** adding or upgrading `@noy-db/to-*` alone does **not** move your hub. If you are already on an earlier `0.6.0-pre`, you keep it, and you meet no format change.
+- **Fresh installs differ.** npm auto-installs peers at the newest satisfying version, and `^0.6.0-pre.0` admits `0.6.0-pre.23` — so installing from nothing gets you the current hub. With no existing data that is a non-event.
+
+  ```
+  FRESH     npm i @noy-db/to-postgres@next                    -> hub 0.6.0-pre.23
+  EXISTING  npm i @noy-db/hub@0.6.0-pre.16 ; then the store   -> hub 0.6.0-pre.16
+  ```
+
+- **No functional change to this package.** Its `dist` is byte-identical to `0.6.0-pre.5`; only the development pin and the repo's own docs moved.
+- Every store was verified to compile against the oldest hub its declared range admits, at both distinct floors.
+
+### The ciphertext this store holds is unaffected by the 0.6 format changes
+
+Two format changes landed upstream between `0.6.0-pre.18` and `0.6.0-pre.23`, and they have opposite shapes. Neither is a defect in this package, and neither touches the bytes a store holds — a store never decrypts.
+
+- `pre.18` bound record identity into the AEAD. Records written before it cannot be opened by `pre.18` or later.
+- `pre.21` authenticated the keyring roster. This fails at **unlock**, not at a record read, and travels with the vault rather than the payload.
+
+The AEAD scheme is byte-identical across `pre.18 … pre.23`, so records remain cross-readable within that range. See `README.md` — *What a passing test suite here does and does not prove*.
+
 ## 0.6.0-pre.5
 
 ### The release path refuses to route a pre-release to `@latest`
