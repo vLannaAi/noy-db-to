@@ -18,3 +18,9 @@
  * Private packages are excluded.
  */
 export function publishedPackages(): string[]
+
+/** What to do with one package, decided from its current dist-tags alone. */
+export function decideAction(
+  tags: { latest?: string; next?: string } | null | undefined,
+  version: string,
+): { action: 'refuse' | 'skip' | 'move'; reason: string }

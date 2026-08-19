@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 // Importing must not read the registry or write a tag — the execute half is
 // behind an isMain guard. Only the derivation is testable, and that is the
 // half worth testing: it decides which packages a post-publish job touches.
-import { publishedPackages } from '../align-dist-tags.mjs'
+import { publishedPackages, decideAction } from '../align-dist-tags.mjs'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 
@@ -52,5 +52,53 @@ describe('align-dist-tags: the package list is DERIVED, not transcribed', () => 
         .filter(d => JSON.parse(readFileSync(join(ROOT, d, 'package.json'), 'utf8')).private !== true)
         .length,
     )
+  })
+})
+
+describe('align-dist-tags: the before-state assertion', () => {
+  // The load-bearing safety property, and it had NO coverage in the first
+  // draft. A blind `dist-tag add <pkg>@<version> next` is correct when the
+  // stable really published and catastrophic when the version input is wrong —
+  // it would point the in-flight channel at a version that may not exist.
+  //
+  // `latest` must ALREADY be the target, because the publish sets it. Anything
+  // else means we are running too early, or against the wrong --version.
+
+  it('MOVES only when latest is already the target and next is behind', () => {
+    expect(decideAction({ latest: '0.6.0', next: '0.6.0-pre.7' }, '0.6.0').action).toBe('move')
+  })
+
+  it('SKIPS when already aligned', () => {
+    expect(decideAction({ latest: '0.6.0', next: '0.6.0' }, '0.6.0').action).toBe('skip')
+  })
+
+  it('REFUSES when the stable has not published — latest still on the old line', () => {
+    const d = decideAction({ latest: '0.5.0', next: '0.6.0-pre.7' }, '0.6.0')
+    expect(d.action).toBe('refuse')
+    expect(d.reason).toMatch(/Did the stable publish\?/)
+  })
+
+  it('REFUSES when --version does not match what was published', () => {
+    // The catastrophic case: someone passes 0.7.0 while 0.6.0 is what shipped.
+    expect(decideAction({ latest: '0.6.0', next: '0.6.0-pre.7' }, '0.7.0').action).toBe('refuse')
+  })
+
+  it.each([undefined, null, {}, { next: '0.6.0-pre.7' }])(
+    'REFUSES on missing or partial dist-tags (%j)',
+    (tags) => {
+      expect(decideAction(tags as never, '0.6.0').action).toBe('refuse')
+    },
+  )
+
+  it('never returns anything but refuse/skip/move', () => {
+    const inputs = [
+      [{ latest: '0.6.0', next: '0.6.0-pre.7' }, '0.6.0'],
+      [{ latest: '0.5.0' }, '0.6.0'],
+      [{}, '0.6.0'],
+      [undefined, '0.6.0'],
+    ] as const
+    for (const [t, v] of inputs) {
+      expect(['refuse', 'skip', 'move']).toContain(decideAction(t as never, v).action)
+    }
   })
 })

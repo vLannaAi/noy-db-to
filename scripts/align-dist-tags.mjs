@@ -66,7 +66,29 @@ export function publishedPackages() {
     .sort()
 }
 
-if (!isMain) { /* imported for publishedPackages() — stop here */ } else {
+/**
+ * Decide what to do with one package, from its current dist-tags alone.
+ *
+ * Pure, and exported ONLY so the refusal can be tested. `latest` must ALREADY
+ * be the target: the stable publish sets it, so if it is not there this is
+ * running against the wrong `--version`, or before the publish landed. A blind
+ * `dist-tag add <pkg>@<version> next` is correct when the stable really
+ * published and CATASTROPHIC when the version input is wrong — it would move
+ * the in-flight channel onto a version that may not exist.
+ *
+ * @param {{latest?: string, next?: string}} tags
+ * @param {string} version
+ * @returns {{action: 'refuse'|'skip'|'move', reason: string}}
+ */
+export function decideAction(tags, version) {
+  if (tags?.latest !== version) {
+    return { action: 'refuse', reason: `\`latest\` is ${tags?.latest ?? '<none>'}, expected ${version}. Did the stable publish?` }
+  }
+  if (tags.next === version) return { action: 'skip', reason: 'already aligned' }
+  return { action: 'move', reason: `${tags.next ?? '<none>'} → ${version}` }
+}
+
+if (!isMain) { /* imported for the pure helpers — stop here */ } else {
 
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
@@ -113,12 +135,10 @@ for (const pkg of pkgs) {
   // correct when the stable really published and catastrophic when --version is
   // wrong. `latest` must ALREADY be the target: the publish sets it, so if it
   // is not there, this is running against the wrong version or too early.
-  if (tags.latest !== version) {
-    fail(`\`${pkg}\` — refusing: \`latest\` is ${tags.latest}, expected ${version}. Did the stable publish?`)
-    continue
-  }
-  if (tags.next === version) { note(`- \`${pkg}\` — already aligned`); continue }
-  if (dryRun) { note(`- \`${pkg}\` — would move \`next\`: ${tags.next} → ${version}`); continue }
+  const decision = decideAction(tags, version)
+  if (decision.action === 'refuse') { fail(`\`${pkg}\` — refusing: ${decision.reason}`); continue }
+  if (decision.action === 'skip') { note(`- \`${pkg}\` — ${decision.reason}`); continue }
+  if (dryRun) { note(`- \`${pkg}\` — would move \`next\`: ${decision.reason}`); continue }
 
   try {
     execFileSync('npm', ['dist-tag', 'add', `${pkg}@${version}`, 'next'], { stdio: 'pipe' })
