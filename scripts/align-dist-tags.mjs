@@ -150,54 +150,37 @@ for (const pkg of pkgs) {
 // ⛔ THE RETRY LOOP IS THE MECHANISM. THE TWO-PASS SPLIT IS NOT.
 //
 // It is tempting to read the write/confirm separation as the fix, because it is
-// the structurally satisfying half. It is not, and porting it without a retry
-// budget that can outlast the cache lands STRICTLY WORSE than the original —
-// the same shape as porting a changelog parser without checking the heading
-// style it matches.
+// the structurally satisfying half. Porting it without a retry budget that can
+// outlast the cache lands STRICTLY WORSE than the original — the same shape as
+// porting a changelog parser without checking the heading style it matches.
 //
-// The reason: in a two-pass design the settling a package gets for free is
-// simply the time spent writing everything AFTER it. noy-db has 52 packages at
-// ~1.5s per write, so its FIRST package got ~80s before anything read it back.
-// This repo has 18. The first gets ~25s and THE LAST GETS ESSENTIALLY ZERO.
+// HOW MUCH SETTLING THE SPLIT ACTUALLY BUYS (derivation from the code, not a
+// measurement — the fixed design has never run on a real cut):
 //
-// So the hazard here is the TAIL, and it presents as "the last two or three did
-// not land" — which is exactly what a genuine partial failure looks like, and
-// therefore the most believable false alarm available. The retry budget below
-// is what has to cover it, independent of how many packages there are.
+//   with n packages, write time w, read time r, and BOTH PASSES IN THE SAME
+//   ORDER, package i is written at i·w and read at n·w + i·r, so
 //
-// THIS IS SEPARATED FROM THE WRITE ON PURPOSE. `npm view` is CDN-served, so a
-// read immediately after `dist-tag add` routinely returns the PREVIOUS value.
-// noy-db's equivalent job read back inline and reported all 52 packages failed
-// while all 52 had in fact succeeded — then printed 52 repair commands for
-// packages needing no repair. Anyone following that log hand-repairs a correct
-// release, one OTP at a time.
+//     settle(i) = n·w + i·(r − w)      i=1 → n·w      i=n → n·r
 //
-// The earlier version of THIS script had the identical shape. It had written
-// "a zero exit is not evidence the tag moved" into itself and then treated one
-// immediate read as evidence it had NOT moved — the same mistake, pointed the
-// other way. A stale read is not evidence either.
+//   r ≈ w for npm calls, so settle is roughly ONE PASS-DURATION for every
+//   package, with a floor of n·r. That scales WITH package count:
 //
-// TWO THINGS THAT MAKE THIS PARTICULARLY WORTH GUARDING RATHER THAN WATCHING FOR:
+//     52 packages → ~80s     18 (here) → ~27s     3 → ~4.5s
 //
-//   1. It is unreachable by any test runnable before a real cut. Dry runs, unit
-//      tests and pre-flight checks all pass, because none of them WRITE. The
-//      defect cannot exist until the one release where a spurious "half-applied,
-//      here are the repair commands" is most likely to be believed.
+// So the exposure here is that this repo is EIGHTEEN, not that it is
+// tail-shaped. An earlier draft of this comment claimed the last-written
+// package gets essentially zero settle; that is false for this design and was
+// reasoning about an ordering nobody had read. It IS true of a
+// verify-inline-per-package design, which is what noy-db shipped and what broke.
 //
-//   2. A SMALL package count is worse, not better. noy-db saw 52 of 52 "fail",
-//      and that uniformity is what made it implausible enough to re-check — 52
-//      simultaneous failures is not what partial failure looks like. One or two
-//      stale reads across 18 packages looks exactly like a genuine straggler,
-//      which is the thing this job exists to catch. There would be no tell.
+// ⚠️ THE INVARIANT THAT MAKES THE ABOVE HOLD IS UNSTATED ANYWHERE ELSE AND
+// PINNED BY NO TEST: both passes must run in the SAME ORDER. Phase 1 pushes in
+// `pkgs` order; `Array.prototype.filter` below preserves it. Reverse the read
+// loop for a good-looking reason — or parallelise it — and the tail silently
+// goes to zero, which is exactly the failure the earlier draft imagined.
+// The retry budget is what makes that not matter, which is the real argument
+// for sizing it independently of package count.
 //
-//      Hence the classification below is COUNT-INDEPENDENT: one unconfirmed
-//      package and eighteen get the same instruction, because the number carries
-//      no information about which case it is.
-//
-// The generalisation, which is worth more than this incident: the usual advice
-// is to distrust a uniform, tidy or reassuring result — and it is aimed entirely
-// at GREEN. A red result gets no such scrutiny, and noy-db nearly reported a
-// failed release off the back of one. Uniformity is a tell in both directions.
 const stillStale = ({ pkg }) => { try { return readTags(pkg).next !== version } catch { return true } }
 
 // Check once for free before waiting — most packages confirm immediately and
