@@ -1,5 +1,16 @@
 # @noy-db/to-turso
 
+## 0.6.0-pre.7
+
+### The peer-floor guard now runs on source changes
+
+- **No functional change to this package.** Its `dist` is byte-identical to `0.6.0-pre.6`; this release carries a CI fix and exists to keep the registry in step with `main`.
+- **`peer-floor.yml` was triggered on manifest edits only**, so a source change never ran it ([#104](https://github.com/vLannaAi/noy-db-to/pull/104)). A declared peer range becomes false in two ways, and the guard could see one: a manifest edit changes the range directly, while a source edit changes what the code *needs* — adopting a symbol the floor does not have. Both `pull_request` and `push` filters now include `to-*/src/**`.
+
+  Measured across published tarballs, three symbols exist at the current dev pin and at **neither** declared floor — `RefNotDeclaredError`, `KeyringTamperedError` and `RecordRef`. A single `src/` import of any of them would falsify both ranges, compile cleanly against the dev pin, and pass every other gate.
+
+- Peer ranges are unchanged: `^0.6.0-pre.0`, and `^0.6.0-pre.11` for `to-drive`/`to-icloud`. Verified true at both floors.
+
 ## 0.6.0-pre.6
 
 ### Hub dev pin moved to `0.6.0-pre.23`
