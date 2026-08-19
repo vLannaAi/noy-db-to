@@ -17,9 +17,19 @@ name: Peer floor
 #        StoreFactory exists at pre.0, it just cannot accept the argument.
 #        Only compiling against the floor finds it.
 #
-# Triggers are scoped to when a range or a dependency can actually change:
-# any package.json edit, plus manual dispatch. Running it on every push would
-# cost two installs for changes that cannot affect the answer.
+# Triggers are scoped to when a range can actually become false. That is NOT
+# only a manifest edit:
+#
+#   - a MANIFEST edit changes the declared range directly
+#   - a SOURCE edit changes what the code needs, which falsifies a range that
+#     was true yesterday — adopting a symbol, or a subpath, that the floor does
+#     not have. noy-db-ui hit exactly this: a subpath migration touching no
+#     manifest broke the build at its own declared floor, and its guard stayed
+#     silent because the path filter could not see a source change.
+#
+# So `to-*/src/**` is in the filter. Store tests, tsup/vitest configs and
+# anything else outside `src/` are deliberately excluded — none of them ship,
+# so none of them can make a published range false.
 #
 # `workflow_call` exists because those path-scoped triggers match NO part of a
 # `release` event — so before it was added, release.yml could publish a peer
@@ -36,10 +46,10 @@ on:
         required: false
         type: string
   pull_request:
-    paths: ['**/package.json', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
+    paths: ['**/package.json', 'to-*/src/**', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
   push:
     branches: [main]
-    paths: ['**/package.json', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
+    paths: ['**/package.json', 'to-*/src/**', 'scripts/check-peer-floor.mjs', '.github/workflows/peer-floor.yml']
   workflow_dispatch:
 
 # The load-bearing half here is `cancel-in-progress`, not the group key.
