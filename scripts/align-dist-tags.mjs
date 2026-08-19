@@ -158,6 +158,28 @@ for (const pkg of pkgs) {
 // "a zero exit is not evidence the tag moved" into itself and then treated one
 // immediate read as evidence it had NOT moved — the same mistake, pointed the
 // other way. A stale read is not evidence either.
+//
+// TWO THINGS THAT MAKE THIS PARTICULARLY WORTH GUARDING RATHER THAN WATCHING FOR:
+//
+//   1. It is unreachable by any test runnable before a real cut. Dry runs, unit
+//      tests and pre-flight checks all pass, because none of them WRITE. The
+//      defect cannot exist until the one release where a spurious "half-applied,
+//      here are the repair commands" is most likely to be believed.
+//
+//   2. A SMALL package count is worse, not better. noy-db saw 52 of 52 "fail",
+//      and that uniformity is what made it implausible enough to re-check — 52
+//      simultaneous failures is not what partial failure looks like. One or two
+//      stale reads across 18 packages looks exactly like a genuine straggler,
+//      which is the thing this job exists to catch. There would be no tell.
+//
+//      Hence the classification below is COUNT-INDEPENDENT: one unconfirmed
+//      package and eighteen get the same instruction, because the number carries
+//      no information about which case it is.
+//
+// The generalisation, which is worth more than this incident: the usual advice
+// is to distrust a uniform, tidy or reassuring result — and it is aimed entirely
+// at GREEN. A red result gets no such scrutiny, and noy-db nearly reported a
+// failed release off the back of one. Uniformity is a tell in both directions.
 let pending = wrote
 for (let i = 1; i <= attempts && pending.length; i++) {
   sleep(settleMs)
