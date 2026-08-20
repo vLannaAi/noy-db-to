@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/to-webdav",
-  "version": "0.6.0-pre.7",
+  "version": "0.6.0",
   "description": "WebDAV adapter for noy-db — encrypted object storage over the WebDAV protocol. Works with Nextcloud, ownCloud, Apache mod_dav, and any RFC 4918 server. Pure fetch()-based, zero dependencies.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
@@ -40,9 +40,9 @@
     "@noy-db/hub": "^0.6.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0-pre.24",
+    "@noy-db/hub": "0.6.0",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0-pre.24"
+    "@noy-db/test-adapter-conformance": "0.6.0"
   },
   "keywords": [
     "noy-db",

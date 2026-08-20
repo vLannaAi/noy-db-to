@@ -1,5 +1,24 @@
 # @noy-db/to-smb
 
+## 0.6.0
+
+**First stable release of the extended storage adapters.**
+
+### Compatibility
+
+- **Peer range unchanged and unnarrowed**: `^0.6.0-pre.0`, and `^0.6.0-pre.11` for `to-drive`/`to-icloud`. Both already admitted `0.6.0`, so adopting this release requires no change on your side.
+- Development pin moved to the stable `@noy-db/hub@0.6.0`. Every store was verified to compile against the **oldest** hub its declared range admits, not just against the pin.
+
+### What a stable fixes for you
+
+The `0.5.0` line was broken on arrival: those versions import `StoreLocator`, `StoreDescriptor` and `StoreFactory` while advertising a `^0.5.0` peer, and `@noy-db/hub@0.5.0` exports none of them. All 17 remain **deprecated on purpose** — they are immutable, and the deprecation is the only signal anyone pinning them will ever see.
+
+Until now an untagged `npm i @noy-db/to-postgres @noy-db/hub` could not give you a working, current pair. From this release it can.
+
+### Notes on the 0.6 line
+
+Three no-migration format changes landed upstream during the pre-release line. **None of them affects the ciphertext a store holds** — the hub encrypts before any adapter is called and decrypts after it returns, so a format change is invisible across this seam by construction. A vault created before them must be re-seeded; that is a hub concern, and your store's data is not the thing at fault. See `README.md` — *What a passing test suite here does and does not prove*.
+
 ## 0.6.0-pre.7
 
 ### The peer-floor guard now runs on source changes
