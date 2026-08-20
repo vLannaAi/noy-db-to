@@ -126,9 +126,13 @@ jobs:
 
       # The dist-tag is routed entirely by the "Set as a pre-release" checkbox on
       # the Release form, so a forgotten tick publishes a pre-release to @latest.
-      # That is not self-healing: repairing it needs `npm dist-tag`, which is an
-      # account-changing write requiring an interactive 2FA OTP, so CI can never
-      # do it.
+      # Recovery is awkward but NOT impossible from CI, and the distinction
+      # matters now that align-dist-tags.mjs in this repo depends on it:
+      # `npm dist-tag add` DOES work with the automation token (verified by
+      # klum-db against the live registry), because that token bypasses 2FA. It
+      # is the LOCAL `~/.npmrc` path that needs an interactive OTP. `npm
+      # deprecate` is a different endpoint and has NOT been tested this way —
+      # do not widen this into "account-changing writes are automatable".
       #
       # This repo is the one that most needs the guard and was the last to get
       # it. Its @latest is already broken — all 17 to-*@0.5.0 versions are
@@ -320,6 +324,65 @@ jobs:
           echo "- npm dist-tag: \`${{ steps.dist_tag.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Provenance: enabled (look for the ✓ on https://www.npmjs.com/package/@noy-db/to-aws-s3)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Align dist-tags after a STABLE publish ───────────────────────────
+  #
+  # `release.yml` routes an unmarked Release to `--tag latest`, which sets
+  # `latest` to the stable and LEAVES `next` on the last pre-release. Since
+  # `0.6.0 > 0.6.0-pre.7`, `@next` then sits BEHIND `@latest` — the "lying tag"
+  # state the family sweep flags, created by the act of cutting a stable.
+  #
+  # Pointing `next` at the stable too is self-correcting: the next pre-release
+  # moves it forward and the normal invariant returns.
+  #
+  # NOT continue-on-error, deliberately, and unlike the docs bridge. That job is
+  # non-fatal because a missing payload is recoverable and must not fail a
+  # publish that already succeeded. This one is different: a package left behind
+  # makes `npm i @noy-db/to-x@next` resolve something OLDER than `@latest` — a
+  # wrong answer, not a missing nicety. It must be loud.
+  #
+  # Only fires when the publish actually routed to `latest`.
+  align-dist-tags:
+    name: Align dist-tags (stable only)
+    needs: publish
+    if: github.event_name == 'release' && needs.publish.outputs.dist_tag == 'latest'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+          registry-url: 'https://registry.npmjs.org'
+      - name: Show the plan
+        run: node scripts/align-dist-tags.mjs --version="${GITHUB_REF_NAME#v}" --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Align `next` onto the stable
+        run: node scripts/align-dist-tags.mjs --version="${GITHUB_REF_NAME#v}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Report failure loudly
+        if: failure()
+        run: |
+          {
+            echo "### ⚠️ dist-tag alignment FAILED — the publish itself succeeded"
+            echo ""
+            echo "The script's own log distinguishes two cases and they need OPPOSITE actions."
+            echo "Read it before touching anything:"
+            echo ""
+            echo "- **\`dist-tag add\` FAILED** — those packages genuinely need repair, and the"
+            echo "  log lists the exact command per package."
+            echo "- **refused on the before-state** — \`latest\` was not the expected version, so"
+            echo "  nothing was written. Do NOT hand-repair; check that the stable actually"
+            echo "  published and that the version passed in was right."
+            echo ""
+            echo "A package written-but-unconfirmed is NOT a failure and does not reach this"
+            echo "block — \`npm view\` is CDN-served and lags writes. Repairing one of those"
+            echo "hand-edits a correct release."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Docs bridge (spec: docs/superpowers/specs/2026-07-30-docs-bridge-design.md) ──
   #
