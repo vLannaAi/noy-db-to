@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/to-nfs",
-  "version": "0.6.0-pre.7",
+  "version": "0.6.0",
   "description": "NFS network-file store for noy-db. Same JSON-file indexed layout as the local file store, with pre-flight checks for nolock / noac mount options that silently break versioning guarantees on stock NFS mounts.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
@@ -40,9 +40,9 @@
     "@noy-db/hub": "^0.6.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0-pre.24",
+    "@noy-db/hub": "0.6.0",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0-pre.24"
+    "@noy-db/test-adapter-conformance": "0.6.0"
   },
   "keywords": [
     "noy-db",
