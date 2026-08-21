@@ -36,7 +36,9 @@
  * |---|---|
  * | `casAtomic` | `true` — DynamoDB `ConditionExpression` on `_v` |
  * | `txAtomic` | `true` — `TransactWriteItems` with per-item `ConditionExpression` on `_v`; ≤100 ops per batch (over-limit throws, never splits) |
- * | `ping` | ✓ — `DescribeTable` |
+ * | `ping` | ✓ — a `Query` on the reserved `__ping__` partition. NOT `DescribeTable`:
+ *   a client scoped by `dynamodb:LeadingKeys` cannot read that partition, so
+ *   `ping()` returns `false` against a healthy table. See README, #17. |
  *
  * @packageDocumentation
  */
