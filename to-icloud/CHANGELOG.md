@@ -1,5 +1,20 @@
 # @noy-db/to-icloud
 
+
+## 0.7.0-pre.0
+
+**First cut on the hub 0.7 line.**
+
+### Compatibility
+
+- **Peer range WIDENED by appending, not narrowed**: `^0.6.0-pre.0 || ^0.7.0-pre.0`
+  (`^0.6.0-pre.11 || ^0.7.0-pre.0` for `to-drive`/`to-icloud`). A consumer on a `0.6.x` hub
+  keeps it; nothing compels an upgrade. Verified by compiling every store against the
+  **oldest** hub its range admits, at both declared floors — not just against the dev pin.
+- The store imports **zero** symbols retired by hub 0.7's `Provider`-suffix removal
+  (measured against the shipped codemod map, all `safeGlobalReplace` rows) — which is why
+  widening rather than narrowing is honest here.
+
 ## 0.6.0
 
 **First stable release of the extended storage adapters.**
