@@ -94,6 +94,35 @@ function isPreconditionFailed(err: unknown): boolean {
 
 export function toAwsS3(options: S3Options): NoydbStore {
   const { bucket, prefix = '' } = options
+
+  // REFUSE a trailing slash rather than trimming it (#109).
+  //
+  // Every key is built as `${prefix}/${...}`, so `prefix: 'tenant-a/'` yields
+  // `tenant-a//alice/docs/d1.json` — an empty path segment. `tenant-a` and
+  // `tenant-a/` therefore address DIFFERENT OBJECTS, and the published README
+  // taught the trailing-slash form from 0.4.0 through 0.6.0.
+  //
+  // Trimming it silently — the obvious one-line fix — is a data-relocation
+  // event: an operator running a trailing slash would start addressing keys
+  // that hold nothing, with every existing record becoming invisible, and no
+  // error to notice. Adding a console warning does not mitigate that; warnings
+  // scroll past, and nothing reads stdout on a server.
+  //
+  // Both trimming and refusing force the same migration, because removing the
+  // slash changes the keys either way. Only refusing makes the operator aware
+  // BEFORE the data goes missing, at the one moment they can act on it. No
+  // compatibility flag is offered: that would permanently encode an accident.
+  if (prefix.endsWith('/')) {
+    const trimmed = prefix.replace(/\/+$/, '')
+    throw new Error(
+      `@noy-db/to-aws-s3: \`prefix\` must not end in '/'. Got ${JSON.stringify(prefix)}.\n`
+      + `  The separator is added for you, so this addresses ${JSON.stringify(`${prefix}/<vault>/<collection>/<id>.json`)}\n`
+      + `  — note the empty segment. Use ${JSON.stringify(trimmed)} instead.\n`
+      + `  ⚠️ If this store already holds data, those objects are under the DOUBLE-separator\n`
+      + `  form and are NOT moved by this change. Copy them to the single-separator keys\n`
+      + `  before switching, or they become unreachable. See noy-db-to#109.`,
+    )
+  }
   const clockUncertaintyMs = options.clockUncertaintyMs ?? 5_000
 
   const client = options.client ?? new S3Client({
