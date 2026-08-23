@@ -1,5 +1,28 @@
 # Changelog — to-aws-s3
 
+
+## 0.7.0-pre.0
+
+**First cut on the hub 0.7 line.**
+
+### Compatibility
+
+- **Peer range WIDENED by appending, not narrowed**: `^0.6.0-pre.0 || ^0.7.0-pre.0`
+  (`^0.6.0-pre.11 || ^0.7.0-pre.0` for `to-drive`/`to-icloud`). A consumer on a `0.6.x` hub
+  keeps it; nothing compels an upgrade. Verified by compiling every store against the
+  **oldest** hub its range admits, at both declared floors — not just against the dev pin.
+- The store imports **zero** symbols retired by hub 0.7's `Provider`-suffix removal
+  (measured against the shipped codemod map, all `safeGlobalReplace` rows) — which is why
+  widening rather than narrowing is honest here.
+
+### Breaking
+
+- **A `prefix` ending in `/` is now REFUSED at construction** rather than silently producing
+  double-separator keys (`tenant-a//alice/…`). `tenant-a` and `tenant-a/` address different
+  objects, so trimming would silently relocate data; the error names the migration instead.
+  If your store already holds data under a trailing-slash prefix, copy the objects to the
+  single-separator keys **before** fixing the config — see noy-db-to#109.
+
 ## 0.6.0
 
 **First stable release of the extended storage adapters.**

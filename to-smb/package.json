@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/to-smb",
-  "version": "0.6.0",
+  "version": "0.7.0-pre.0",
   "description": "SMB/CIFS network file store for noy-db. Works against Windows file servers, NAS devices (Synology/QNAP/Netgear), and corporate shared drives via NTLM or Kerberos auth \u2014 no OS mount required.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
@@ -40,9 +40,9 @@
     "@noy-db/hub": "^0.6.0-pre.0 || ^0.7.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.7.0-pre.0",
+    "@noy-db/hub": "0.7.0-pre.2",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.2"
   },
   "keywords": [
     "noy-db",
