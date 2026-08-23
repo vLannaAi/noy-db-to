@@ -110,3 +110,19 @@ describe('@noy-db/to-cloudflare-r2 CAS', () => {
     await expect(store.put('v', 'c', 'id', env(1), 0)).rejects.toBeInstanceOf(ConflictError)
   })
 })
+
+describe('#109 — the trailing-slash refusal is INHERITED, not reimplemented', () => {
+  it('rejects a prefix ending in `/`, via toAwsS3', () => {
+    // R2 is a thin wrapper: it forwards `prefix` straight to toAwsS3, so it
+    // inherits the guard rather than repeating it. Pinned because the
+    // inheritance is invisible from this file — a refactor that built keys
+    // locally would silently lose it, and the symptom (double-separator keys)
+    // is exactly what #109 exists to prevent.
+    expect(() => toCloudflareR2({ client: {} as never, bucket: 'b', prefix: 'tenant-a/' }))
+      .toThrow(/must not end in/)
+  })
+
+  it('accepts a slash-free prefix', () => {
+    expect(() => toCloudflareR2({ client: {} as never, bucket: 'b', prefix: 'tenant-a' })).not.toThrow()
+  })
+})

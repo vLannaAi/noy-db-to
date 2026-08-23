@@ -57,8 +57,27 @@ A `getStoreTime()` sentinel lives at `{prefix}/_noydb-clock`, outside any vault.
 > written against `tenant-a/{vault}/*` finds the vault in the third segment rather than the
 > second.
 >
-> Pass the prefix without a trailing slash. This is pinned by
-> `__tests__/key-layout.test.ts`.
+> **`toAwsS3()` now REFUSES a trailing slash at construction** rather than trimming it,
+> and the error names the consequence. Trimming would have been the obvious fix and is
+> the wrong one: it silently relocates every existing record for anyone already running a
+> trailing slash, with no error to notice. Both refusing and trimming force the same
+> migration — only refusing lets you see it coming.
+>
+> #### If you are already running a trailing slash
+>
+> Your objects are under the **double-separator** form, and removing the slash does not
+> move them:
+>
+> ```
+> before   tenant-a//alice/docs/d1.json      ← where your data is
+> after    tenant-a/alice/docs/d1.json       ← where the store will look
+> ```
+>
+> Copy the objects to the single-separator keys **before** switching the config, or they
+> become unreachable. No compatibility flag is offered, deliberately: that would encode
+> an accident permanently.
+>
+> Pinned by `__tests__/key-layout.test.ts`. See noy-db-to#109.
 
 ## Direct-to-cloud clients: IAM scoping
 
