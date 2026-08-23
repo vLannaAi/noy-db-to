@@ -1,7 +1,7 @@
 {
   "name": "@noy-db/to-icloud",
   "version": "0.6.0",
-  "description": "iCloud Drive bundle store for noy-db — macOS-aware persistence that handles both eviction shapes (modern dataless-in-place and legacy .icloud stubs) and detects conflict files automatically. Treats each vault as a single .noydb bundle, safe for the Apple ecosystem.",
+  "description": "iCloud Drive bundle store for noy-db \u2014 macOS-aware persistence that handles both eviction shapes (modern dataless-in-place and legacy .icloud stubs) and detects conflict files automatically. Treats each vault as a single .noydb bundle, safe for the Apple ecosystem.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
   "homepage": "https://github.com/vLannaAi/noy-db-to/tree/main/to-icloud#readme",
@@ -37,12 +37,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@noy-db/hub": "^0.6.0-pre.11"
+    "@noy-db/hub": "^0.6.0-pre.11 || ^0.7.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0",
+    "@noy-db/hub": "0.7.0-pre.0",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0"
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
   },
   "keywords": [
     "noy-db",

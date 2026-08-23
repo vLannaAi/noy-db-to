@@ -37,12 +37,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@noy-db/hub": "^0.6.0-pre.0"
+    "@noy-db/hub": "^0.6.0-pre.0 || ^0.7.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0",
+    "@noy-db/hub": "0.7.0-pre.0",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0"
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
   },
   "keywords": [
     "noy-db",

@@ -1,7 +1,7 @@
 {
   "name": "@noy-db/to-aws-dynamo",
   "version": "0.6.0",
-  "description": "AWS DynamoDB adapter for noy-db — single-table design, zero-knowledge cloud sync",
+  "description": "AWS DynamoDB adapter for noy-db \u2014 single-table design, zero-knowledge cloud sync",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
   "homepage": "https://github.com/vLannaAi/noy-db-to/tree/main/to-aws-dynamo#readme",
@@ -39,13 +39,13 @@
   "peerDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
-    "@noy-db/hub": "^0.6.0-pre.0"
+    "@noy-db/hub": "^0.6.0-pre.0 || ^0.7.0-pre.0"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
-    "@noy-db/hub": "0.6.0",
-    "@noy-db/test-adapter-conformance": "0.6.0"
+    "@noy-db/hub": "0.7.0-pre.0",
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
   },
   "keywords": [
     "noy-db",

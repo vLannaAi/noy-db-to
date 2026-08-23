@@ -1,7 +1,7 @@
 {
   "name": "@noy-db/to-drive",
   "version": "0.6.0",
-  "description": "Google Drive bundle store for noy-db. Stores the whole vault as a single .noydb file in Drive's hidden appDataFolder; opaque ULID filenames never leak compartment names. Driver-agnostic — bring your own OAuth token.",
+  "description": "Google Drive bundle store for noy-db. Stores the whole vault as a single .noydb file in Drive's hidden appDataFolder; opaque ULID filenames never leak compartment names. Driver-agnostic \u2014 bring your own OAuth token.",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
   "homepage": "https://github.com/vLannaAi/noy-db-to/tree/main/to-drive#readme",
@@ -37,12 +37,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@noy-db/hub": "^0.6.0-pre.11"
+    "@noy-db/hub": "^0.6.0-pre.11 || ^0.7.0-pre.0"
   },
   "devDependencies": {
-    "@noy-db/hub": "0.6.0",
+    "@noy-db/hub": "0.7.0-pre.0",
     "@types/node": "^22.0.0",
-    "@noy-db/test-adapter-conformance": "0.6.0"
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
   },
   "keywords": [
     "noy-db",

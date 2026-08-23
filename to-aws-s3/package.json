@@ -1,7 +1,7 @@
 {
   "name": "@noy-db/to-aws-s3",
   "version": "0.6.0",
-  "description": "AWS S3 adapter for noy-db — encrypted object storage with zero-knowledge cloud sync",
+  "description": "AWS S3 adapter for noy-db \u2014 encrypted object storage with zero-knowledge cloud sync",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
   "homepage": "https://github.com/vLannaAi/noy-db-to/tree/main/to-aws-s3#readme",
@@ -38,12 +38,12 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "@noy-db/hub": "^0.6.0-pre.0"
+    "@noy-db/hub": "^0.6.0-pre.0 || ^0.7.0-pre.0"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "@noy-db/hub": "0.6.0",
-    "@noy-db/test-adapter-conformance": "0.6.0"
+    "@noy-db/hub": "0.7.0-pre.0",
+    "@noy-db/test-adapter-conformance": "0.7.0-pre.0"
   },
   "keywords": [
     "noy-db",
