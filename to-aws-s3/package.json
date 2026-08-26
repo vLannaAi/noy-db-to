@@ -1,6 +1,6 @@
 {
   "name": "@noy-db/to-aws-s3",
-  "version": "0.7.0-pre.0",
+  "version": "0.7.0-pre.1",
   "description": "AWS S3 adapter for noy-db \u2014 encrypted object storage with zero-knowledge cloud sync",
   "license": "MIT",
   "author": "vLannaAi <vicio@lanna.ai>",
