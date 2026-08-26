@@ -1,6 +1,34 @@
 # @noy-db/to-rest
 
 
+## 0.7.0-pre.1
+
+**`ConflictError` re-hydration no longer requires `version` on the wire.**
+
+### Changed
+
+- A `409` is re-hydrated as `ConflictError` keyed on `error.name` **alone**. `error.version`
+  is now **optional**: when the server omits it — or sends `null`, since JSON has no
+  `undefined` — the error carries `NaN`.
+- **Why:** the server is dropping that field, because it discloses another writer's progress
+  counter. This client previously required it, so such a `409` would have failed the guard,
+  matched no status branch, and surfaced as a plain `Error` — making `isConflictError()`
+  false at every store-boundary catch in the hub, silently collapsing a state warranting
+  retry/merge into an unknown-server-error one.
+- **`NaN`, never a sentinel:** it satisfies `ConflictError`'s declared `version: number`, no
+  comparison against it can accidentally succeed, and it cannot masquerade as a real stored
+  version. A `-1` sentinel was considered and rejected for exactly that reason.
+
+### Compatibility
+
+- **Backward-compatible; no consumer action required.** The client accepts both the current
+  `409` payload (with `version`) and the future one (without). Verified against the published
+  tarball by driving both payloads through it, not asserted from source.
+- Peer range unchanged: `^0.6.0-pre.0 || ^0.7.0-pre.0`.
+- ⚠️ Consumers on **`0.7.0-pre.0` or earlier** are the ones this ordering protects: that
+  client requires `version`, so it breaks once the server stops sending it. Upgrade before
+  the server-side change ships.
+
 ## 0.7.0-pre.0
 
 **First cut on the hub 0.7 line.**
