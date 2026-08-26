@@ -36,7 +36,7 @@
  * | Server response | Client behavior |
  * |---|---|
  * | `200` | JSON result, returned as-is |
- * | `409 { error: { name: 'ConflictError', version } }` | re-thrown as `ConflictError(version)` — CAS semantics survive the wire hop |
+ * | `409 { error: { name: 'ConflictError', version? } }` | re-thrown as `ConflictError` — CAS semantics survive the wire hop. Keyed on `name` alone; `version` is OPTIONAL and becomes `NaN` when the server omits it |
  * | `401` | auth error (the server's `authorize` is fail-closed — send the header it expects) |
  * | `403` | capability error (method not in the server's `allow` set) |
  * | `501` | the server's backing store lacks this optional method |
@@ -159,8 +159,21 @@ export function toRest(options: RestStoreOptions): NoydbStore & { dispose: () =>
     }
     // Re-hydrate ConflictError so CAS semantics survive the wire hop
     // (mirrors by-peer's peer-store re-hydration).
-    if (wire.name === 'ConflictError' && typeof wire.version === 'number') {
-      throw new ConflictError(wire.version, wire.message)
+    //
+    // Keyed on `name` ALONE — `version` is optional (#114). noy-db #1218
+    // removes that field from in-rest's 409 body because it discloses
+    // another writer's progress counter; requiring it here would make a
+    // post-#1218 conflict fall through to the generic mapping below and
+    // arrive as a plain Error. `isConflictError()` would then be false at
+    // every store-boundary catch in hub (#935), silently collapsing a
+    // retry/merge state into an unknown-server-error one.
+    //
+    // Absent (or null — JSON has no `undefined`) becomes NaN, never a
+    // sentinel: it satisfies the declared `number`, no comparison against
+    // it can accidentally succeed, and it cannot masquerade as a real
+    // stored version.
+    if (wire.name === 'ConflictError') {
+      throw new ConflictError(typeof wire.version === 'number' ? wire.version : Number.NaN, wire.message)
     }
     if (res.status === 401) {
       throw new Error(
