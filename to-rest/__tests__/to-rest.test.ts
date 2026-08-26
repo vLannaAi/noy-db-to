@@ -39,9 +39,19 @@ describe('to-rest — RPC client (#55)', () => {
   // in-rest can produce this body yet, so the 409 is hand-rolled.
   // Mirrors hub's `isConflictError` — the predicate every store-boundary
   // catch is required to use (hub #935: `instanceof` is unreliable across
-  // this seam). It is NOT imported: hub exports it from the ROOT barrel
-  // only, never from `@noy-db/hub/to`, and a store may bind only `/to`
-  // (verified against hub 0.7.0-pre.2 and the 0.7.0-pre.0 peer floor).
+  // this seam).
+  //
+  // NOT imported, and this is a statement about our PEER RANGE, not about
+  // hub. `@noy-db/hub/to` began exporting it at 0.7.0-pre.6; this package
+  // advertises `^0.6.0-pre.0 || ^0.7.0-pre.0`, and the predicate is absent
+  // from `/to` at BOTH branch floors (measured: 0.6.0-pre.0 → undefined,
+  // 0.7.0-pre.0 → undefined). A named import would compile against the dev
+  // pin and fail `check-peer-floor` — the #89/#84 class.
+  //
+  // So adopting it is a peer-range NARROWING to ^0.7.0-pre.6, which drops
+  // the whole 0.6 line and most of the 0.7 pre line for consumers, to gain
+  // nothing this mirror does not already do. Revisit only when the range
+  // floor moves past 0.7.0-pre.6 for some independent reason.
   const isConflictError = (err: unknown): boolean =>
     err instanceof ConflictError || (err instanceof Error && err.name === 'ConflictError')
 
