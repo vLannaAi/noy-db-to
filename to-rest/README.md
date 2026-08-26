@@ -37,7 +37,7 @@ whatever the server's hook expects — typically an `Authorization` header — v
 | Server response | Client behavior |
 |---|---|
 | `200` | result returned as-is |
-| `409 { error: { name: 'ConflictError', version } }` | re-thrown as `ConflictError(version)` — CAS survives the wire hop |
+| `409 { error: { name: 'ConflictError', version? } }` | re-thrown as `ConflictError` — CAS survives the wire hop. Keyed on `name` alone; `version` is OPTIONAL and becomes `NaN` when the server omits it |
 | `401` | auth error (check the `Authorization` header) |
 | `403` | method not in the server's `allow` set |
 | `501` | the server's backing store lacks this optional method |
