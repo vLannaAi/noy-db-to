@@ -7,8 +7,15 @@ name: CI
 on:
   push:
     branches: [main]
+  # No `branches:` filter, deliberately (lanna-db#12). `pull_request.branches`
+  # filters on the BASE branch, so a PR stacked on another branch triggers
+  # nothing — and GitHub renders that as "no checks reported", which reads as
+  # pending but is never-ran. Worse here specifically: peer-floor.yml has no
+  # such filter, so a stacked PR gets ONE green check and no CI — a partial
+  # green, which reads as "checks ran and passed" more convincingly than
+  # silence would. The `push` filter above stays: it prevents duplicate runs,
+  # it does not gate evidence.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
